@@ -1,0 +1,34 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: posttrack_db
+    environment:
+      POSTGRES_USER: posttrack_user
+      POSTGRES_PASSWORD: posttrack_password
+      POSTGRES_DB: posttrack_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: posttrack_backend
+    command: /app/docker/django/entrypoint.sh
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgres://posttrack_user:posttrack_password@db:5432/posttrack_db
+      - SECRET_KEY=dev_secret_key_posttrack_2026
+      - DEBUG=True
+      - PYTHONPATH=/app/src:/app/src/apps
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:
