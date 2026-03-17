@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+@theme {
+  /* Tipografías del diseño */
+  --font-display: 'Libre Baskerville', Georgia, serif;
+  --font-body: 'Plus Jakarta Sans', sans-serif;
+
+  /* Colores de tu diseño (Teal) */
+  --color-brand-50: #edf7f4;
+  --color-brand-100: #c6ece1;
+  --color-brand-200: #8fd5c3;
+  --color-brand-400: #2aaa8a;
+  --color-brand-500: #1f8f73;
+  --color-brand-600: #166358;
+  --color-brand-800: #0d3d36;
+
+  /* Colores Slate y Red ya vienen por defecto muy similares en Tailwind, 
+     pero podemos usar los base de tailwind directamente para simplificar. */
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: theme('colors.slate.50');
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Patrón de puntos decorativo del panel izquierdo */
+.bg-dots-pattern {
+  background-image: radial-gradient(circle, rgba(255,255,255,0.07) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
