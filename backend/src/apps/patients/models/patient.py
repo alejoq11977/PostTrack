@@ -12,6 +12,7 @@ class Patient(AuditableModel):
     breed = models.CharField(max_length=100)
     birth_date = models.DateField()
     current_weight = models.FloatField(help_text="Weight in kg")
+    photo_url = models.URLField(max_length=500, blank=True, null=True, help_text="URL pública de la imagen (ImgBB)")
 
     class Meta:
         verbose_name = 'Patient'

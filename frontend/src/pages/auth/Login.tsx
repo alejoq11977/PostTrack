@@ -1,17 +1,30 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom'; // <-- IMPORTANTE: Para cambiar de página
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/app/providers/firebase';
-import { Mail, Lock, Check, Info, AlertCircle, HeartPulse, ArrowRight } from 'lucide-react';
+import { Mail, Lock, Check, AlertCircle, ArrowRight } from 'lucide-react';
 import { Input } from '@/shared/components/common/Input';
 import { cn } from '@/shared/utils/cn';
 import { Logo } from '@/shared/components/common/Logo';
+import { useAuth } from '@/features/auth/hooks/useAuth'; // <-- IMPORTANTE: Nuestro estado global
 
 export const Login = () => {
-  const[email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  
-  const[errors, setErrors] = useState({ email: '', password: '', global: '' });
+  const [email, setEmail] = useState('');
+  const[password, setPassword] = useState('');
+  const [errors, setErrors] = useState({ email: '', password: '', global: '' });
   const [isLoading, setIsLoading] = useState(false);
+
+  // === MAGIA DE REDIRECCIÓN ===
+  const navigate = useNavigate();
+  const { user } = useAuth(); 
+
+  // Si el usuario ya está autenticado, lo enviamos a su lista de mascotas/pacientes
+  useEffect(() => {
+    if (user) {
+      navigate('/', { replace: true });
+    }
+  },[user, navigate]);
+  // ============================
 
   const validate = () => {
     let isValid = true;
@@ -36,16 +49,17 @@ export const Login = () => {
 
     setIsLoading(true);
     try {
+      // Firebase valida las credenciales. 
+      // Si todo sale bien, AuthContext se entera y actualiza la variable 'user', 
+      // lo que dispara el useEffect de arriba y cambia la pantalla.
       await signInWithEmailAndPassword(auth, email, password);
-      // El AuthContext detectará el login y redirigirá si es necesario
     } catch (err: any) {
       setErrors(prev => ({ 
         ...prev, 
         global: 'Correo o contraseña incorrectos. Por favor verifique e intente de nuevo.' 
       }));
-    } finally {
-      setIsLoading(false);
-    }
+      setIsLoading(false); // Solo apagamos el loading si hay error
+    } 
   };
 
   return (

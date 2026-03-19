@@ -11,12 +11,12 @@ class SurgicalMonitoringAdmin(ModelAdmin):
 
 @admin.register(GeneralQuestion)
 class GeneralQuestionAdmin(ModelAdmin):
-    list_display = ('text', 'associated_risk', 'is_active')
+    list_display = ('text', 'associated_risk', 'is_active', 'instruction_text')
     list_filter = ('associated_risk', 'is_active')
 
 @admin.register(CustomQuestion)
 class CustomQuestionAdmin(ModelAdmin):
-    list_display = ('text', 'monitoring', 'is_active')
+    list_display = ('text', 'monitoring', 'is_active', 'instruction_text')
     search_fields = ('text', 'monitoring__patient__name')
 
 @admin.register(Report)

@@ -122,3 +122,6 @@ REST_FRAMEWORK = {
 }
 
 CORS_ALLOW_ALL_ORIGINS = True
+
+# IMGBB API Configuration
+IMGBB_API_KEY = env('IMGBB_API_KEY', default='')

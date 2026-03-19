@@ -9,6 +9,7 @@ class RiskLevel(models.TextChoices):
 class GeneralQuestion(AuditableModel):
     text = models.CharField(max_length=500)
     associated_risk = models.CharField(max_length=10, choices=RiskLevel.choices)
+    instruction_text = models.TextField(blank=True, null=True, help_text="Instrucción sutil para ayudar al dueño a responder.")
 
     class Meta:
         verbose_name = 'General Question'
@@ -20,6 +21,7 @@ class GeneralQuestion(AuditableModel):
 class CustomQuestion(AuditableModel):
     monitoring = models.ForeignKey('monitoring.SurgicalMonitoring', on_delete=models.CASCADE, related_name='custom_questions')
     text = models.CharField(max_length=500)
+    instruction_text = models.TextField(blank=True, null=True, help_text="Instrucción sutil para ayudar al dueño a responder.")
 
     class Meta:
         verbose_name = 'Custom Question'
