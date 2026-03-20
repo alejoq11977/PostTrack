@@ -17,3 +17,19 @@ export interface Patient {
   current_weight: number;
   monitorings: SurgicalMonitoring[]; 
 }
+
+export interface Question {
+  id: number;
+  text: string;
+  instruction_text?: string | null;
+}
+
+export interface MonitoringForm {
+  monitoring: {
+    id: number;
+    surgery_type: string;
+    surgery_date: string;
+    custom_questions: Question[];
+  };
+  general_questions: Question[];
+}

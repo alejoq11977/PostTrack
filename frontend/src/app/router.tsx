@@ -4,6 +4,7 @@ import { ProtectedRoute } from './ProtectedRoute';
 import { MainLayout } from '@/shared/components/layouts/MainLayout';
 import { MyPetsPage } from '@/pages/owner/MyPetsPage';
 import { PetDetailsPage } from '@/pages/owner/PetDetailsPage';
+import { ReportFormPage } from '@/pages/owner/ReportFormPage';
 
 export const router = createBrowserRouter([
   {
@@ -24,7 +25,7 @@ export const router = createBrowserRouter([
             path: '/pets/:id', // Pantalla de detalle de la mascota
             element: <PetDetailsPage />,
           },
-          // Próximamente: { path: '/report/:monitoringId', element: <ReportFormPage /> }
+          { path: '/report/:monitoringId', element: <ReportFormPage />, },
         ]
       }
     ]
