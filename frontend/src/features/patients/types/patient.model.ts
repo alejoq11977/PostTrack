@@ -33,3 +33,31 @@ export interface MonitoringForm {
   };
   general_questions: Question[];
 }
+
+export type ProcessingStatus = 'PROCESSING' | 'COMPLETED' | 'FAILED';
+export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH';
+export type ReportStatus = 'PENDING' | 'REVIEWED';
+
+export interface VisualEvidence {
+  id: number;
+  image_url: string;
+  created_at: string;
+}
+
+export interface Answer {
+  id: number;
+  question_text: string;
+  value: string;
+}
+
+export interface ReportHistory {
+  id: number;
+  submitted_at: string;
+  calculated_risk?: RiskLevel | null;
+  validated_risk?: RiskLevel | null;
+  review_status: ReportStatus;
+  processing_status: ProcessingStatus;
+  medical_notes?: string | null;
+  answers: Answer[];
+  evidences: VisualEvidence[];
+}

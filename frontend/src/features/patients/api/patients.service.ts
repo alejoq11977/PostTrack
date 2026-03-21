@@ -1,5 +1,5 @@
 import { apiClient } from '@/shared/api/client';
-import { Patient, MonitoringForm } from '../types/patient.model';
+import { Patient, MonitoringForm, ReportHistory } from '../types/patient.model';
 
 export interface SubmitReportPayload {
   monitoringId: number;
@@ -39,5 +39,10 @@ export const patientsService = {
         'Content-Type': 'multipart/form-data'
       }
     });
+  },
+  
+  getMonitoringHistory: async (monitoringId: number): Promise<ReportHistory[]> => {
+    const response = await apiClient.get<ReportHistory[]>(`/monitoring/${monitoringId}/history/`);
+    return response.data;
   }
 };

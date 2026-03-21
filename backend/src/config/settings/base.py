@@ -125,3 +125,12 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 # IMGBB API Configuration
 IMGBB_API_KEY = env('IMGBB_API_KEY', default='')
+
+# Media files (Archivos físicos subidos temporalmente)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# Celery Configuration
+CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='redis://localhost:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'

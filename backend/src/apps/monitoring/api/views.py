@@ -4,9 +4,10 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 
-from apps.monitoring.models import SurgicalMonitoring, GeneralQuestion
-from ..serializers.monitoring import MonitoringFormSerializer, GeneralQuestionSerializer
+from apps.monitoring.models import SurgicalMonitoring, GeneralQuestion, Report
+from ..serializers.monitoring import MonitoringFormSerializer, GeneralQuestionSerializer, ReportHistorySerializer
 from apps.monitoring.services.report import create_monitoring_report
+from rest_framework.generics import ListAPIView
 
 class MonitoringFormAPIView(APIView):
     permission_classes =[IsAuthenticated]
@@ -61,3 +62,20 @@ class MonitoringFormAPIView(APIView):
                 {"error": "Ocurrió un error al procesar el reporte."}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+class MonitoringHistoryAPIView(ListAPIView):
+    """
+    Devuelve todos los reportes enviados para un seguimiento (cirugía) específico,
+    ordenados del más reciente al más antiguo.
+    """
+    permission_classes = [IsAuthenticated]
+    serializer_class = ReportHistorySerializer
+
+    def get_queryset(self):
+        monitoring_id = self.kwargs.get('pk')
+        
+        return Report.objects.filter(
+            monitoring_id=monitoring_id,
+            monitoring__patient__owner=self.request.user,
+            is_active=True
+        ).order_by('-submitted_at')
