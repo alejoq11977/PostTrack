@@ -1,53 +1,91 @@
 import json
 import logging
-from concurrent.futures import ThreadPoolExecutor, as_completed 
+import uuid
+
 from django.db import transaction
-from apps.monitoring.models import Report, Answer, VisualEvidence, SurgicalMonitoring
-from apps.core.services.imgbb import upload_image_to_imgbb
+from django.core.files.storage import default_storage
+
+from apps.monitoring.models import (
+    Report,
+    Answer,
+    SurgicalMonitoring,
+    ProcessingStatus
+)
+
+from apps.monitoring.tasks import process_report_images_task
 
 logger = logging.getLogger(__name__)
 
-def create_monitoring_report(monitoring: SurgicalMonitoring, data: dict, files: dict) -> Report:
+
+def create_monitoring_report(
+    monitoring: SurgicalMonitoring,
+    data: dict,
+    files: dict
+) -> Report:
     try:
         general_answers = json.loads(data.get('generalAnswers', '{}'))
         custom_answers = json.loads(data.get('customAnswers', '{}'))
         medical_notes = data.get('medicalNotes', '')
 
-        image_files = [file for key, file in files.items() if key.startswith('image_')]
-        uploaded_urls =[]
+        image_files = [
+            file for key, file in files.items()
+            if key.startswith('image_')
+        ]
 
-        if image_files:
-            with ThreadPoolExecutor(max_workers=4) as executor:
-                future_to_url = {executor.submit(upload_image_to_imgbb, f): f for f in image_files}
-                
-                for future in as_completed(future_to_url):
-                    url = future.result()
-                    if url:
-                        uploaded_urls.append(url)
+        saved_file_paths = []
+
+        for file in image_files:
+            temp_name = f"temp/{uuid.uuid4().hex}_{file.name}"
+            saved_path = default_storage.save(temp_name, file)
+            saved_file_paths.append(saved_path)
 
         with transaction.atomic():
+
+            status = (
+                ProcessingStatus.PROCESSING
+                if saved_file_paths
+                else ProcessingStatus.COMPLETED
+            )
+
             report = Report.objects.create(
                 monitoring=monitoring,
                 medical_notes=medical_notes,
+                processing_status=status
             )
 
-            answers_to_create =[]
-            for q_id, val in general_answers.items():
-                answers_to_create.append(Answer(report=report, general_question_id=int(q_id), value=val))
+            answers_to_create = []
 
-            for q_id, val in custom_answers.items():
-                answers_to_create.append(Answer(report=report, custom_question_id=int(q_id), value=val))
+            for question_id, value in general_answers.items():
+                answers_to_create.append(
+                    Answer(
+                        report=report,
+                        general_question_id=int(question_id),
+                        custom_question=None,
+                        value=value
+                    )
+                )
 
-            Answer.objects.bulk_create(answers_to_create)
+            for question_id, value in custom_answers.items():
+                answers_to_create.append(
+                    Answer(
+                        report=report,
+                        custom_question_id=int(question_id),
+                        general_question=None,
+                        value=value
+                    )
+                )
 
-            evidences_to_create =[
-                VisualEvidence(report=report, image_url=url) for url in uploaded_urls
-            ]
-            VisualEvidence.objects.bulk_create(evidences_to_create)
+            if answers_to_create:
+                Answer.objects.bulk_create(answers_to_create)
 
-            logger.info(f"Reporte {report.id} creado con {len(uploaded_urls)} fotos.")
-            return report
+        if saved_file_paths:
+            process_report_images_task.delay(
+                report.id,
+                saved_file_paths
+            )
+
+        return report
 
     except Exception as e:
-        logger.error(f"Error al crear el reporte: {str(e)}")
-        raise e
+        logger.error(f"Error creando reporte: {e}", exc_info=True)
+        raise
