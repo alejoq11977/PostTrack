@@ -6,11 +6,16 @@ import { MyPetsPage } from '@/pages/owner/MyPetsPage';
 import { PetDetailsPage } from '@/pages/owner/PetDetailsPage';
 import { ReportFormPage } from '@/pages/owner/ReportFormPage';
 import { PetHistoryPage } from '@/pages/owner/PetHistoryPage';
+import { CompleteProfile } from '@/pages/auth/CompleteProfile';
 
 export const router = createBrowserRouter([
   {
     path: '/login',
     element: <Login />,
+  },
+  {
+    path: '/complete-profile',
+    element:  <CompleteProfile />,
   },
   {
     element: <ProtectedRoute />,

@@ -6,7 +6,7 @@ import { Patient } from '@/features/patients/types/patient.model';
 
 export const MyPetsPage = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
-  const[isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -21,15 +21,25 @@ export const MyPetsPage = () => {
       }
     };
     fetchPatients();
-  },[]);
+  }, []);
 
-  if (isLoading) return <div className="animate-pulse h-32 w-full bg-slate-200 rounded-xl"></div>;
+  if (isLoading) return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {[1, 2].map(i => (
+        <div key={i} className="animate-pulse rounded-xl bg-slate-100 aspect-[4/3]" />
+      ))}
+    </div>
+  );
 
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-[26px] font-display text-slate-800 mb-1.5">Mis Mascotas</h1>
-        <p className="text-slate-500 text-[14.5px]">Seleccione una mascota para ver sus seguimientos postoperatorios.</p>
+        <h1 className="text-[24px] font-display font-semibold text-slate-800 tracking-tight">
+          Mis Mascotas
+        </h1>
+        <p className="text-slate-400 text-[13px] mt-1">
+          Seleccione una mascota para ver sus seguimientos postoperatorios.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -37,24 +47,61 @@ export const MyPetsPage = () => {
           const hasActiveMonitorings = patient.monitorings?.some(m => m.status === 'ACTIVE');
 
           return (
-            <div 
-              key={patient.id} 
+            <div
+              key={patient.id}
               onClick={() => navigate(`/pets/${patient.id}`)}
-              className="bg-white rounded-xl border border-slate-200 p-5 hover:border-brand-400 hover:shadow-md cursor-pointer transition-all flex items-center justify-between group"
+              className="
+                group bg-white rounded-xl border border-slate-200
+                overflow-hidden cursor-pointer
+                hover:border-slate-300 hover:shadow-sm
+                transition-all duration-150
+              "
             >
-              <div>
-                <h3 className="text-[17px] font-bold text-slate-800">{patient.name}</h3>
-                <p className="text-[13.5px] text-slate-500 mt-0.5">{patient.species} • {patient.breed}</p>
-                
-                {hasActiveMonitorings && (
-                  <div className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-50 text-amber-600 text-[11.5px] font-semibold border border-amber-200">
-                    <Activity size={14} /> En recuperación
+              {/* ── FOTO PROTAGONISTA ── */}
+              <div className="relative aspect-[4/3] bg-slate-100 overflow-hidden">
+                {patient.photo_url ? (
+                  <img
+                    src={patient.photo_url}
+                    alt={patient.name}
+                    className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-slate-100">
+                    <span className="text-6xl opacity-30 select-none">
+                      {patient.species === 'Felino' ? '🐈' : '🐕'}
+                    </span>
                   </div>
                 )}
+
+                {/* Gradiente + nombre sobre la foto */}
+                <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/50 to-transparent" />
+                <div className="absolute bottom-0 inset-x-0 px-4 pb-3 flex items-end justify-between">
+                  <span className="text-white text-[17px] font-semibold tracking-tight drop-shadow-sm">
+                    {patient.name}
+                  </span>
+                  {hasActiveMonitorings && (
+                    <span className="inline-flex items-center gap-1.5 bg-amber-400/90 text-amber-950 text-[10.5px] font-semibold px-2 py-1 rounded-md">
+                      <Activity size={10} strokeWidth={2.5} />
+                      En recuperación
+                    </span>
+                  )}
+                </div>
               </div>
-              
-              <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-brand-50 group-hover:text-brand-500 transition-colors">
-                <ChevronRight size={20} />
+
+              {/* ── INFO INFERIOR ── */}
+              <div className="px-4 py-3 flex items-center justify-between">
+                <div>
+                  <p className="text-[13px] text-slate-500">{patient.breed}</p>
+                  <span className="text-[11px] text-slate-400 font-medium">
+                    {patient.species}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 group-hover:border-brand-300 group-hover:text-brand-500 transition-colors">
+                    <ChevronRight size={13} strokeWidth={2} />
+                  </div>
+                </div>
               </div>
             </div>
           );

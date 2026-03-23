@@ -15,7 +15,8 @@ export interface Patient {
   breed: string;
   birth_date: string;
   current_weight: number;
-  monitorings: SurgicalMonitoring[]; 
+  photo_url?: string | null;
+  monitorings: SurgicalMonitoring[];
 }
 
 export interface Question {

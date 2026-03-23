@@ -18,7 +18,7 @@ export const MainLayout = () => {
     <div className="min-h-screen bg-slate-50 flex">
       {/* Sidebar Izquierdo */}
       <aside className="hidden md:flex flex-col w-64 bg-white border-r border-slate-200 px-6 py-8">
-        <Logo className="w-32 h-auto mb-10" showText={true} />
+        <Logo className="w-32 h-auto mb-10" />
         
         <nav className="flex-1 flex flex-col gap-2">
           {isVet ? (
@@ -67,7 +67,7 @@ export const MainLayout = () => {
       {/* Contenido Principal */}
       <main className="flex-1 overflow-y-auto">
         <div className="md:hidden flex items-center justify-between bg-white border-b border-slate-200 px-4 py-4">
-          <Logo className="w-24 h-auto" showText={true} />
+          <Logo className="w-24 h-auto"/>
           <button onClick={handleLogout} className="p-2 text-slate-500">
             <LogOut size={20} />
           </button>

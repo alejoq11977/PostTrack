@@ -4,6 +4,7 @@ import { Clock, FilePlus2, ArrowLeft, History, CheckCircle2 } from 'lucide-react
 import { patientsService } from '@/features/patients/api/patients.service';
 import { Patient } from '@/features/patients/types/patient.model';
 import { cn } from '@/shared/utils/cn';
+import { PetAvatar } from '@/features/patients/components/PetAvatar';
 
 export const PetDetailsPage = () => {
   const { id } = useParams();
@@ -30,9 +31,17 @@ export const PetDetailsPage = () => {
         <ArrowLeft size={16} /> Volver a mis mascotas
       </button>
 
-      <div className="mb-8">
-        <h1 className="text-[26px] font-display text-slate-800 mb-1.5">{patient.name}</h1>
-        <p className="text-slate-500 text-[14.5px]">Historial de seguimientos postoperatorios.</p>
+      <div className="flex items-center gap-5 mb-8">
+        <PetAvatar 
+          photoUrl={patient.photo_url} 
+          name={patient.name} 
+          size="lg" 
+          className="border-4 border-white shadow-md" 
+        />
+        <div>
+          <h1 className="text-[26px] font-display text-slate-800 mb-1.5">{patient.name}</h1>
+          <p className="text-slate-500 text-[14.5px]">Seguimientos postoperatorios activos.</p>
+        </div>
       </div>
 
       {!patient.monitorings || patient.monitorings.length === 0 ? (
@@ -66,7 +75,6 @@ export const PetDetailsPage = () => {
                       </div>
                     </div>
 
-                    {/* Badge de Estado */}
                     <div className={cn(
                       "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11.5px] font-semibold border",
                       isActive 
@@ -83,7 +91,6 @@ export const PetDetailsPage = () => {
                   
                   <div className="mt-5 pt-5 border-t border-slate-100 flex flex-col sm:flex-row gap-3">
                     
-                    {/* Botón Principal: Solo si está ACTIVO */}
                     {isActive && (
                       <button 
                         onClick={() => navigate(`/report/${monitoring.id}`)}
@@ -94,7 +101,6 @@ export const PetDetailsPage = () => {
                       </button>
                     )}
 
-                    {/* Botón Secundario: Ver Historial (Para TODOS) */}
                     <button 
                       onClick={() => navigate(`/history/${monitoring.id}`)}
                       className={cn(
@@ -107,7 +113,6 @@ export const PetDetailsPage = () => {
                       <History size={18} />
                       Ver Historial de Reportes
                     </button>
-
                   </div>
                 </div>
               </div>

@@ -4,7 +4,6 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 export const ProtectedRoute = () => {
   const { user, isLoading } = useAuth();
 
-  // Mientras Firebase y Django se comunican, mostramos un loader
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -13,16 +12,17 @@ export const ProtectedRoute = () => {
     );
   }
 
-  // Si terminó de cargar y no hay usuario, lo echamos al login
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  // RNF: Si el usuario es nuevo y no ha cambiado su contraseña, lo forzaremos 
-  // a la pantalla de "Completar Perfil". Por ahora, si password_changed es false, 
-  // lo dejamos pasar pero podríamos redirigirlo aquí:
-  // if (!user.password_changed) return <Navigate to="/complete-profile" replace />;
+  if (!user.password_changed && location.pathname !== '/complete-profile') {
+    return <Navigate to="/complete-profile" replace />;
+  }
 
-  // Si todo está bien, mostramos la pantalla que solicitó (Outlet)
+  if (user.password_changed && location.pathname === '/complete-profile') {
+    return <Navigate to="/" replace />;
+  }
+
   return <Outlet />;
 };

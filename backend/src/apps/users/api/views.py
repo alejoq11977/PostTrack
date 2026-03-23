@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from apps.users.serializers.user import UserProfileSerializer, OwnerCreateSerializer
 from apps.users.services.user import create_owner_from_vet
+from django.utils import timezone
 
 class UserProfileAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -45,3 +46,29 @@ class VetCreateOwnerAPIView(APIView):
                 )
                 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+class CompleteProfileAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        """
+        Endpoint para registrar que el usuario cambió su contraseña inicial 
+        y aceptó la política de datos (Ley 1581).
+        """
+        terms_accepted = request.data.get('terms_accepted', False)
+        
+        if not terms_accepted:
+            return Response(
+                {"error": "Debe aceptar la política de tratamiento de datos para continuar."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user = request.user
+        
+        # Marcamos la auditoría
+        user.password_changed = True
+        user.terms_accepted_at = timezone.now()
+        user.save(update_fields=['password_changed', 'terms_accepted_at'])
+
+        return Response({"message": "Perfil actualizado y términos aceptados."}, status=status.HTTP_200_OK)
