@@ -1,4 +1,5 @@
-# backend/src/apps/monitoring/admin.py
+from django import forms
+from django.db import models
 from django.contrib import admin
 from unfold.admin import ModelAdmin
 from .models import SurgicalMonitoring, GeneralQuestion, CustomQuestion, Report, Answer, VisualEvidence
@@ -8,6 +9,12 @@ class SurgicalMonitoringAdmin(ModelAdmin):
     list_display = ('surgery_type', 'patient', 'surgery_date', 'status')
     list_filter = ('status',)
     search_fields = ('surgery_type', 'patient__name')
+    
+    autocomplete_fields = ['patient']
+
+    formfield_overrides = {
+        models.DateTimeField: {'widget': forms.DateTimeInput(attrs={'type': 'datetime-local'})},
+    }
 
 @admin.register(GeneralQuestion)
 class GeneralQuestionAdmin(ModelAdmin):

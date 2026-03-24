@@ -18,21 +18,20 @@ class PatientAdminForm(forms.ModelForm):
     class Meta:
         model = Patient
         fields = '__all__'
+        widgets = {
+            'birth_date': forms.DateInput(attrs={'type': 'date'}),
+        }
 
     def save(self, commit=True):
         instance = super().save(commit=False)
-        
         image_file = self.cleaned_data.get('image_upload')
         
         if image_file:
             logger.info(f"Subiendo foto de {instance.name} a ImgBB desde el Admin...")
             url = upload_image_to_imgbb(image_file)
-            
             if url:
                 instance.photo_url = url
                 logger.info(f"Foto de {instance.name} guardada: {url}")
-            else:
-                logger.error("Falló la subida a ImgBB desde el Admin.")
 
         if commit:
             instance.save()
@@ -40,12 +39,14 @@ class PatientAdminForm(forms.ModelForm):
 
 @admin.register(Patient)
 class PatientAdmin(ModelAdmin):
-    form = PatientAdminForm 
+    form = PatientAdminForm
     
-    list_display = ('name', 'species', 'breed', 'owner', 'birth_date')
+    list_display = ('name', 'species', 'breed', 'owner', 'birth_date', 'photo_url')
     list_filter = ('species', 'is_active')
     search_fields = ('name', 'owner__full_name', 'owner__email')
     ordering = ('-created_at',)
+    
+    autocomplete_fields = ['owner']
     
     fieldsets = (
         ('Propietario', {

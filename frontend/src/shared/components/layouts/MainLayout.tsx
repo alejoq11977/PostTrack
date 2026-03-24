@@ -15,14 +15,18 @@ export const MainLayout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    /* CAMBIO 1: Cambiamos min-h-screen por h-screen y overflow-hidden 
+       Esto evita que el body total de la página haga scroll */
+    <div className="h-screen bg-slate-50 flex overflow-hidden">
+      
       {/* Sidebar Izquierdo */}
-      <aside className="hidden md:flex flex-col w-64 bg-white border-r border-slate-200 px-6 py-8">
+      {/* CAMBIO 2: h-full asegura que el sidebar use el alto fijo del padre */}
+      <aside className="hidden md:flex flex-col w-64 bg-white border-r border-slate-200 px-6 py-8 h-full">
         <Logo className="w-32 h-auto mb-10" />
         
-        <nav className="flex-1 flex flex-col gap-2">
+        {/* Nav con overflow-y-auto por si hay demasiados links en el futuro */}
+        <nav className="flex-1 flex flex-col gap-2 overflow-y-auto">
           {isVet ? (
-            /* Menú del Veterinario */
             <>
               <Link to="/" className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-brand-50 text-brand-600 font-medium">
                 <Users size={20} /> Mis Pacientes
@@ -32,7 +36,6 @@ export const MainLayout = () => {
               </Link>
             </>
           ) : (
-            /* Menú del Propietario */
             <>
               <Link to="/" className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-brand-50 text-brand-600 font-medium">
                 <Home size={20} /> Mis Mascotas
@@ -44,11 +47,11 @@ export const MainLayout = () => {
           )}
         </nav>
 
-        {/* Perfil y Logout */}
-        <div className="pt-6 border-t border-slate-200">
+        {/* Perfil y Logout: Ahora siempre estarán pegados abajo gracias al flex-1 del nav */}
+        <div className="pt-6 border-t border-slate-200 mt-auto">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-full bg-brand-100 flex items-center justify-center text-brand-600 font-bold uppercase">
-              {user?.full_name.charAt(0)}
+              {user?.full_name?.charAt(0)}
             </div>
             <div className="overflow-hidden">
               <p className="text-sm font-semibold text-slate-800 truncate">{user?.full_name}</p>
@@ -65,7 +68,9 @@ export const MainLayout = () => {
       </aside>
 
       {/* Contenido Principal */}
-      <main className="flex-1 overflow-y-auto">
+      {/* CAMBIO 3: Aseguramos h-full y el scroll solo aquí */}
+      <main className="flex-1 flex flex-col h-full overflow-hidden">
+        {/* Header móvil (se mantiene arriba) */}
         <div className="md:hidden flex items-center justify-between bg-white border-b border-slate-200 px-4 py-4">
           <Logo className="w-24 h-auto"/>
           <button onClick={handleLogout} className="p-2 text-slate-500">
@@ -73,8 +78,11 @@ export const MainLayout = () => {
           </button>
         </div>
         
-        <div className="p-6 md:p-10 max-w-5xl mx-auto">
-          <Outlet />
+        {/* Área de scroll para el contenido de las rutas */}
+        <div className="flex-1 overflow-y-auto p-6 md:p-10">
+          <div className="max-w-5xl mx-auto">
+            <Outlet />
+          </div>
         </div>
       </main>
     </div>
