@@ -4,17 +4,29 @@ from django.contrib import admin
 from unfold.admin import ModelAdmin
 from .models import SurgicalMonitoring, GeneralQuestion, CustomQuestion, Report, Answer, VisualEvidence
 
+class SurgicalMonitoringAdminForm(forms.ModelForm):
+    surgery_date = forms.SplitDateTimeField(
+        widget=forms.SplitDateTimeWidget(
+            date_attrs={'type': 'date'}, # Calendario nativo rápido
+            time_attrs={'type': 'time'}  # Reloj nativo
+        ),
+        label="Fecha y Hora de la Cirugía"
+    )
+
+    class Meta:
+        model = SurgicalMonitoring
+        fields = '__all__'
+
+
 @admin.register(SurgicalMonitoring)
 class SurgicalMonitoringAdmin(ModelAdmin):
+    form = SurgicalMonitoringAdminForm
     list_display = ('surgery_type', 'patient', 'surgery_date', 'status')
     list_filter = ('status',)
     search_fields = ('surgery_type', 'patient__name')
     
     autocomplete_fields = ['patient']
 
-    formfield_overrides = {
-        models.DateTimeField: {'widget': forms.DateTimeInput(attrs={'type': 'datetime-local'})},
-    }
 
 @admin.register(GeneralQuestion)
 class GeneralQuestionAdmin(ModelAdmin):

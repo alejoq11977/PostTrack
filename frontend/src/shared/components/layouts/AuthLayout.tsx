@@ -18,7 +18,7 @@ export const AuthLayout = ({ children, title, subtitle, eyebrow }: AuthLayoutPro
         <div className="absolute -bottom-[120px] -right-[120px] w-[420px] h-[420px] rounded-full bg-brand-400/10 pointer-events-none"></div>
 
         <div className="relative z-10">
-          <Logo className="w-48 h-auto drop-shadow-md" />
+          <Logo className="w-50 h-auto drop-shadow-md" />
         </div>
 
         <div className="relative z-10">
@@ -43,7 +43,7 @@ export const AuthLayout = ({ children, title, subtitle, eyebrow }: AuthLayoutPro
         </div>
 
         <p className="relative z-10 text-[11px] text-white/30">
-          © 2026 PostTrack · Todos los derechos reservados
+          © 2026 PostTrack 
         </p>
       </div>
 
@@ -64,10 +64,6 @@ export const AuthLayout = ({ children, title, subtitle, eyebrow }: AuthLayoutPro
 
           {children}
 
-          <p className="text-center text-[11px] text-slate-400 mt-8 leading-relaxed">
-            ¿Necesita ayuda? Contacte al administrador del sistema.<br />
-            © 2026 PostTrack · Información confidencial
-          </p>
         </div>
       </div>
     </div>

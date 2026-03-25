@@ -38,23 +38,26 @@ class UserAdmin(ModelAdmin):
     def save_model(self, request, obj, form, change):
         raw_password = form.cleaned_data.get('new_password')
 
-        if not change and raw_password:
-            
+        if raw_password:
             obj.set_password(raw_password)
 
-            # === CREACIÓN EN FIREBASE ===
-            try:
-                firebase_user = auth.create_user(
-                    email=obj.email,
-                    password=raw_password,
-                    display_name=obj.full_name,
-                )
-                obj.firebase_uid = firebase_user.uid
-                logger.info(f"Usuario {obj.email} creado en Firebase desde el Admin.")
-            except auth.EmailAlreadyExistsError:
-                firebase_user = auth.get_user_by_email(obj.email)
-                obj.firebase_uid = firebase_user.uid
-            except Exception as e:
-                logger.error(f"Error creando en Firebase: {e}")
-                
+            if not change:
+                try:
+                    firebase_user = auth.create_user(
+                        email=obj.email,
+                        password=raw_password,
+                        display_name=obj.full_name,
+                    )
+                    obj.firebase_uid = firebase_user.uid
+                    logger.info(f"Usuario {obj.email} creado en Firebase desde el Admin.")
+                except Exception as e:
+                    logger.error(f"Error creando en Firebase: {e}")
+            else:
+                if obj.firebase_uid:
+                    try:
+                        auth.update_user(obj.firebase_uid, password=raw_password)
+                        logger.info(f"Contraseña de {obj.email} actualizada en Firebase desde el Admin.")
+                    except Exception as e:
+                        logger.error(f"Error actualizando clave en Firebase: {e}")
+
         super().save_model(request, obj, form, change)
