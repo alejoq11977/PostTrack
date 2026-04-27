@@ -34,7 +34,9 @@ class VetCreateOwnerAPIView(APIView):
                 owner = create_owner_from_vet(
                     email=serializer.validated_data['email'],
                     full_name=serializer.validated_data['full_name'],
-                    identification_number=serializer.validated_data['identification_number']
+                    identification_number=serializer.validated_data['identification_number'],
+                    phone_number=serializer.validated_data.get('phone_number'),
+                    address=serializer.validated_data.get('address')
                 )
                 
                 response_serializer = UserProfileSerializer(owner)

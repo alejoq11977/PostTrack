@@ -29,9 +29,25 @@ class User(AbstractBaseUser, PermissionsMixin, AuditableModel):
     full_name = models.CharField(max_length=255)
     email = models.EmailField(unique=True)
     identification_number = models.CharField(max_length=50, unique=True, blank=True, null=True)
+    
+    phone_number = models.CharField(max_length=50, blank=True, null=True)
+    address = models.CharField(max_length=255, blank=True, null=True)
+    
     role = models.CharField(max_length=20, choices=UserRole.choices, default=UserRole.OWNER)
     password_changed = models.BooleanField(default=False)
+    
     terms_accepted_at = models.DateTimeField(null=True, blank=True)
+    terms_accepted_ip = models.CharField(max_length=45, blank=True, null=True, help_text="Dirección IP de aceptación")
+    terms_accepted_version = models.CharField(max_length=20, blank=True, null=True, help_text="Versión de los Términos aceptados")
+    
+    managed_by = models.ForeignKey(
+        'self', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='managed_owners',
+        help_text="Veterinario que registró o gestiona a este dueño"
+    )
     
     is_staff = models.BooleanField(default=False)
 
