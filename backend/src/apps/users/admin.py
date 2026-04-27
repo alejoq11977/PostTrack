@@ -4,6 +4,7 @@ from unfold.admin import ModelAdmin
 from firebase_admin import auth
 from .models import User
 import logging
+from apps.users.models.privacy_policy import PrivacyPolicyVersion
 
 logger = logging.getLogger(__name__)
 
@@ -82,3 +83,10 @@ class UserAdmin(ModelAdmin):
                         logger.error(f"Error actualizando clave en Firebase: {e}")
 
         super().save_model(request, obj, form, change)
+
+
+@admin.register(PrivacyPolicyVersion)
+class PrivacyPolicyVersionAdmin(admin.ModelAdmin):
+    list_display = ('version', 'effective_date', 'is_active', 'created_at')
+    list_filter = ('is_active',)
+    readonly_fields = ('created_at',)

@@ -2,10 +2,13 @@ from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from apps.users.serializers.user import UserProfileSerializer, OwnerCreateSerializer
+from apps.users.serializers.user import (
+    UserProfileSerializer, OwnerCreateSerializer, PrivacyPolicyVersionSerializer
+)
 from apps.users.services.user import create_owner_from_vet
 from django.utils import timezone
 from apps.users.repositories.user import complete_user_profile
+from apps.users.models.privacy_policy import PrivacyPolicyVersion
 
 class UserProfileAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -66,3 +69,57 @@ class CompleteProfileAPIView(APIView):
         complete_user_profile(request.user)
 
         return Response({"message": "Perfil actualizado."}, status=status.HTTP_200_OK)
+    
+
+class PrivacyPolicyActiveAPIView(APIView):
+    """Retorna la versión activa del aviso de privacidad. No requiere auth."""
+    permission_classes = []
+
+    def get(self, request):
+        try:
+            policy = PrivacyPolicyVersion.objects.get(is_active=True)
+        except PrivacyPolicyVersion.DoesNotExist:
+            return Response(
+                {"error": "No hay una política de privacidad activa configurada."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        serializer = PrivacyPolicyVersionSerializer(policy)
+        return Response(serializer.data)
+
+
+class AcceptTermsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+
+        if user.terms_accepted_at:
+            return Response(
+                {"error": "Términos ya aceptados previamente."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        policy_id = request.data.get('policy_id')
+        if not policy_id:
+            return Response(
+                {"error": "Debe enviar el ID de la política aceptada."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            policy = PrivacyPolicyVersion.objects.get(id=policy_id, is_active=True)
+        except PrivacyPolicyVersion.DoesNotExist:
+            return Response(
+                {"error": "La versión de política enviada no es válida o no está activa."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        ip = x_forwarded_for.split(',')[0] if x_forwarded_for else request.META.get('REMOTE_ADDR')
+
+        user.terms_accepted_at = timezone.now()
+        user.terms_accepted_ip = ip
+        user.terms_accepted_version = policy
+        user.save(update_fields=['terms_accepted_at', 'terms_accepted_ip', 'terms_accepted_version'])
+
+        return Response({"message": "Términos aceptados exitosamente."}, status=status.HTTP_200_OK)

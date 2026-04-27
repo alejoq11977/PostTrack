@@ -1,12 +1,19 @@
 from rest_framework import serializers
-from apps.users.models import User
+from apps.users.models import User, PrivacyPolicyVersion
 
 class UserProfileSerializer(serializers.ModelSerializer):
+    terms_accepted_version = serializers.SerializerMethodField()
+
+    def get_terms_accepted_version(self, obj):
+        if obj.terms_accepted_version:
+            return obj.terms_accepted_version.version  
+        return None
+
     class Meta:
         model = User
         fields = (
-            'id', 'email', 'full_name', 'identification_number', 
-            'phone_number', 'address', 'role', 'password_changed', 
+            'id', 'email', 'full_name', 'identification_number',
+            'phone_number', 'address', 'role', 'password_changed',
             'terms_accepted_at', 'terms_accepted_ip', 'terms_accepted_version',
             'managed_by'
         )
@@ -26,3 +33,8 @@ class OwnerCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ('email', 'full_name', 'identification_number', 'phone_number', 'address')
+
+class PrivacyPolicyVersionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PrivacyPolicyVersion
+        fields = ('id', 'version', 'content', 'effective_date')

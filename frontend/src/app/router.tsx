@@ -7,6 +7,7 @@ import { PetDetailsPage } from '@/pages/owner/PetDetailsPage';
 import { ReportFormPage } from '@/pages/owner/ReportFormPage';
 import { PetHistoryPage } from '@/pages/owner/PetHistoryPage';
 import { CompleteProfile } from '@/pages/auth/CompleteProfile';
+import { AcceptTermsPage } from '@/pages/auth/AcceptTermsPage';
 
 export const router = createBrowserRouter([
   {
@@ -14,34 +15,29 @@ export const router = createBrowserRouter([
     element: <Login />,
   },
   {
-    path: '/complete-profile',
-    element:  <CompleteProfile />,
-  },
-  {
     element: <ProtectedRoute />,
-    children:[
+    children: [
+      {
+        path: '/accept-terms',
+        element: <AcceptTermsPage />,
+      },
+      {
+        path: '/complete-profile',
+        element: <CompleteProfile />,
+      },
       {
         element: <MainLayout />,
-        children:[
-          {
-            path: '/', // Ruta raíz: Lista de Mascotas (o pacientes si es vet)
-            element: <MyPetsPage />,
-          },
-          {
-            path: '/pets/:id', // Pantalla de detalle de la mascota
-            element: <PetDetailsPage />,
-          },
-          { path: '/report/:monitoringId', element: <ReportFormPage />, },
-          {
-            path: '/history/:monitoringId', 
-            element: <PetHistoryPage />,
-          },
-        ]
-      }
-    ]
+        children: [
+          { path: '/', element: <MyPetsPage /> },
+          { path: '/pets/:id', element: <PetDetailsPage /> },
+          { path: '/report/:monitoringId', element: <ReportFormPage /> },
+          { path: '/history/:monitoringId', element: <PetHistoryPage /> },
+        ],
+      },
+    ],
   },
   {
     path: '*',
     element: <Navigate to="/" replace />,
-  }
+  },
 ]);

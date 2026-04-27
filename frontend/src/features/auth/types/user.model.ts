@@ -9,3 +9,10 @@ export interface UserProfile {
   password_changed: boolean;
   terms_accepted_at: string | null;
 }
+
+export interface PrivacyPolicy {
+  id: number;
+  version: string;
+  content: string;
+  effective_date: string;
+}

@@ -1,8 +1,9 @@
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 
 export const ProtectedRoute = () => {
   const { user, isLoading } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return (
@@ -13,14 +14,31 @@ export const ProtectedRoute = () => {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    if (location.pathname !== '/login') {
+      return <Navigate to="/login" replace />;
+    }
+    return <Outlet />;
   }
 
-  if (!user.password_changed && location.pathname !== '/complete-profile') {
-    return <Navigate to="/complete-profile" replace />;
+  const hasAcceptedTerms = Boolean(user.terms_accepted_at);
+  const hasChangedPassword = user.password_changed;
+
+  if (!hasAcceptedTerms) {
+    return location.pathname === '/accept-terms'
+      ? <Outlet />
+      : <Navigate to="/accept-terms" replace />;
   }
 
-  if (user.password_changed && location.pathname === '/complete-profile') {
+  if (!hasChangedPassword) {
+    return location.pathname === '/complete-profile'
+      ? <Outlet />
+      : <Navigate to="/complete-profile" replace />;
+  }
+
+  if (
+    location.pathname === '/accept-terms' ||
+    location.pathname === '/complete-profile'
+  ) {
     return <Navigate to="/" replace />;
   }
 
