@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { Logo } from '../common/Logo';
-import { LogOut, Home, Users, AlertCircle, Menu, X } from 'lucide-react';
+import { LogOut, Home, Users, AlertCircle, Menu, X, UserPen } from 'lucide-react';
 
 export const MainLayout = () => {
   const { user, logout } = useAuth();
@@ -39,8 +39,19 @@ export const MainLayout = () => {
       >
         <AlertCircle size={20} /> Alertas (Mora)
       </Link>
+
+      <Link 
+      to ='/profile'
+      onClick= {() => setMenuOpen(false)}
+      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-colors ${
+          isActive('/profile') ? 'bg-brand-50 text-brand-600' : 'text-slate-500 hover:bg-slate-50'
+      }`}
+      >
+        <UserPen size={20} /> Mi Perfil
+      </Link>
     </>
   ) : (
+    <>
     <Link
       to="/"
       onClick={() => setMenuOpen(false)}
@@ -50,6 +61,18 @@ export const MainLayout = () => {
     >
       <Home size={20} /> Mis Mascotas
     </Link>
+    
+    <Link 
+    to ='/profile'
+    onClick= {() => setMenuOpen(false)}
+    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-colors ${
+        isActive('/profile') ? 'bg-brand-50 text-brand-600' : 'text-slate-500 hover:bg-slate-50'
+    }`}
+    >
+      <UserPen size={20} /> Mi Perfil
+    </Link>
+
+    </>
   );
 
   return (

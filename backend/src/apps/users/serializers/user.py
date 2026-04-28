@@ -38,3 +38,4 @@ class PrivacyPolicyVersionSerializer(serializers.ModelSerializer):
     class Meta:
         model = PrivacyPolicyVersion
         fields = ('id', 'version', 'content', 'effective_date')
+

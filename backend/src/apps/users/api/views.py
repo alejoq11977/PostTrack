@@ -10,13 +10,26 @@ from django.utils import timezone
 from apps.users.repositories.user import complete_user_profile
 from apps.users.models.privacy_policy import PrivacyPolicyVersion
 
+from firebase_admin import auth as firebase_auth
+import logging
+
+logger = logging.getLogger(__name__)
+
 class UserProfileAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes =[IsAuthenticated]
 
     def get(self, request):
         """Devuelve los datos del usuario autenticado."""
         serializer = UserProfileSerializer(request.user)
         return Response(serializer.data)
+        
+    def patch(self, request):
+        """Permite al usuario actualizar sus datos (Derecho de Actualizar/Rectificar)."""
+        serializer = UserProfileSerializer(request.user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 class VetCreateOwnerAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -123,3 +136,28 @@ class AcceptTermsAPIView(APIView):
         user.save(update_fields=['terms_accepted_at', 'terms_accepted_ip', 'terms_accepted_version'])
 
         return Response({"message": "Términos aceptados exitosamente."}, status=status.HTTP_200_OK)
+    
+class DeactivateAccountAPIView(APIView):
+    """
+    Endpoint para revocar el consentimiento y eliminar la cuenta.
+    Aplica 'Soft Delete' clínico y bloquea el acceso en Firebase.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        
+        if user.firebase_uid:
+            try:
+                firebase_auth.update_user(user.firebase_uid, disabled=True)
+                logger.info(f"Usuario {user.email} deshabilitado en Firebase Auth.")
+            except Exception as e:
+                logger.error(f"Error deshabilitando usuario en Firebase: {e}")
+                
+        user.is_active = False
+        user.save(update_fields=['is_active'])
+
+        return Response(
+            {"message": "Cuenta desactivada exitosamente. Se conserva historial clínico por ley."}, 
+            status=status.HTTP_200_OK
+        )

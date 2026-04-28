@@ -8,6 +8,7 @@ import { ReportFormPage } from '@/pages/owner/ReportFormPage';
 import { PetHistoryPage } from '@/pages/owner/PetHistoryPage';
 import { CompleteProfile } from '@/pages/auth/CompleteProfile';
 import { AcceptTermsPage } from '@/pages/auth/AcceptTermsPage';
+import { ProfilePage } from '@/pages/owner/ProfilePage'; 
 
 export const router = createBrowserRouter([
   {
@@ -16,7 +17,7 @@ export const router = createBrowserRouter([
   },
   {
     element: <ProtectedRoute />,
-    children: [
+    children:[
       {
         path: '/accept-terms',
         element: <AcceptTermsPage />,
@@ -27,11 +28,12 @@ export const router = createBrowserRouter([
       },
       {
         element: <MainLayout />,
-        children: [
+        children:[
           { path: '/', element: <MyPetsPage /> },
           { path: '/pets/:id', element: <PetDetailsPage /> },
           { path: '/report/:monitoringId', element: <ReportFormPage /> },
           { path: '/history/:monitoringId', element: <PetHistoryPage /> },
+          { path: '/profile', element: <ProfilePage /> }, 
         ],
       },
     ],

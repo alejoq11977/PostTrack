@@ -8,6 +8,8 @@ export interface UserProfile {
   role: UserRole;
   password_changed: boolean;
   terms_accepted_at: string | null;
+  phone_number: string | null;
+  address: string | null;
 }
 
 export interface PrivacyPolicy {

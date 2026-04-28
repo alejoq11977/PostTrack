@@ -7,10 +7,9 @@ import { useAuth } from './useAuth';
 export const useCompleteProfile = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const[isSessionExpired, setIsSessionExpired] = useState(false);
+  const [isSessionExpired, setIsSessionExpired] = useState(false);
 
   const { logout } = useAuth();
 
@@ -25,9 +24,6 @@ export const useCompleteProfile = () => {
     if (password !== confirmPassword) {
       return setError('Las contraseñas no coinciden.');
     }
-    if (!acceptedTerms) {
-      return setError('Debe aceptar la política de tratamiento de datos para continuar.');
-    }
 
     setIsLoading(true);
 
@@ -36,7 +32,6 @@ export const useCompleteProfile = () => {
       if (!currentUser) throw new Error('No hay sesión activa.');
 
       await updatePassword(currentUser, password);
-
       await authService.completeProfile();
 
       window.location.replace('/');
@@ -58,7 +53,6 @@ export const useCompleteProfile = () => {
   return {
     password, setPassword,
     confirmPassword, setConfirmPassword,
-    acceptedTerms, setAcceptedTerms,
     error, isLoading, isSessionExpired, 
     handleSubmit, logout 
   };

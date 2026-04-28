@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import UserProfileAPIView, VetCreateOwnerAPIView, CompleteProfileAPIView, AcceptTermsAPIView, PrivacyPolicyActiveAPIView
+from .views import UserProfileAPIView, VetCreateOwnerAPIView, CompleteProfileAPIView, AcceptTermsAPIView, PrivacyPolicyActiveAPIView, DeactivateAccountAPIView
 
 app_name = 'users'
 
@@ -9,4 +9,5 @@ urlpatterns = [
     path('complete-profile/', CompleteProfileAPIView.as_view(), name='complete-profile'),
     path('accept-terms/', AcceptTermsAPIView.as_view(), name='accept-terms'),
     path('privacy-policy/active/', PrivacyPolicyActiveAPIView.as_view(), name='privacy-policy-active'),
+    path('deactivate/', DeactivateAccountAPIView.as_view(), name='deactivate-account'),
 ]
