@@ -72,6 +72,21 @@ class UserAdmin(ModelAdmin):
                     )
                     obj.firebase_uid = firebase_user.uid
                     logger.info(f"Usuario {obj.email} creado en Firebase desde el Admin.")
+                
+                except auth.EmailAlreadyExistsError:
+                    logger.warning(f"El correo {obj.email} ya existe en Firebase. Intentando recuperar...")
+                    firebase_user = auth.get_user_by_email(obj.email)
+                    obj.firebase_uid = firebase_user.uid
+                    try:
+                        auth.update_user(
+                            firebase_user.uid, 
+                            password=raw_password,
+                            disabled=False
+                        )
+                        logger.info(f"Cuenta zombie {obj.email} recuperada, habilitada y clave actualizada.")
+                    except Exception as inner_e:
+                        logger.error(f"Error recuperando cuenta zombie en Firebase: {inner_e}")
+                        
                 except Exception as e:
                     logger.error(f"Error creando en Firebase: {e}")
             else:
@@ -82,11 +97,27 @@ class UserAdmin(ModelAdmin):
                     except Exception as e:
                         logger.error(f"Error actualizando clave en Firebase: {e}")
 
+        if change and obj.firebase_uid:
+            try:
+                auth.update_user(obj.firebase_uid, disabled=not obj.is_active)
+            except Exception as e:
+                logger.error(f"Error sincronizando is_active en Firebase: {e}")
+
         super().save_model(request, obj, form, change)
+
+    def delete_model(self, request, obj):
+        if obj.firebase_uid:
+            try:
+                auth.delete_user(obj.firebase_uid)
+                logger.info(f"Usuario {obj.email} eliminado físicamente de Firebase Auth.")
+            except Exception as e:
+                logger.warning(f"No se pudo eliminar de Firebase o ya no existía: {e}")
+        
+        super().delete_model(request, obj)
 
 
 @admin.register(PrivacyPolicyVersion)
-class PrivacyPolicyVersionAdmin(admin.ModelAdmin):
+class PrivacyPolicyVersionAdmin(ModelAdmin): 
     list_display = ('version', 'effective_date', 'is_active', 'created_at')
     list_filter = ('is_active',)
     readonly_fields = ('created_at',)
