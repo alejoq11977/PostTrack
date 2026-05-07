@@ -8,7 +8,10 @@ import { ReportFormPage } from '@/pages/owner/ReportFormPage';
 import { PetHistoryPage } from '@/pages/owner/PetHistoryPage';
 import { CompleteProfile } from '@/pages/auth/CompleteProfile';
 import { AcceptTermsPage } from '@/pages/auth/AcceptTermsPage';
-import { ProfilePage } from '@/pages/owner/ProfilePage'; 
+import { ProfilePage } from '@/pages/owner/ProfilePage';
+import { ClinicSelector } from '@/features/clinics/components/ClinicSelector';
+import { PolicyPage } from '@/pages/auth/PolicyPage';
+import { AuthorizationPage } from '@/pages/auth/AuthorizationPage';
 
 export const router = createBrowserRouter([
   {
@@ -19,6 +22,10 @@ export const router = createBrowserRouter([
     element: <ProtectedRoute />,
     children:[
       {
+        path: '/select-clinic',
+        element: <ClinicSelector />,
+      },
+      {
         path: '/accept-terms',
         element: <AcceptTermsPage />,
       },
@@ -27,13 +34,21 @@ export const router = createBrowserRouter([
         element: <CompleteProfile />,
       },
       {
+        path: '/politica-datos',
+        element: <PolicyPage />,
+      },
+      {
+        path: '/autorizacion-datos',
+        element: <AuthorizationPage />,
+      },
+      {
         element: <MainLayout />,
         children:[
           { path: '/', element: <MyPetsPage /> },
           { path: '/pets/:id', element: <PetDetailsPage /> },
           { path: '/report/:monitoringId', element: <ReportFormPage /> },
           { path: '/history/:monitoringId', element: <PetHistoryPage /> },
-          { path: '/profile', element: <ProfilePage /> }, 
+          { path: '/profile', element: <ProfilePage /> },
         ],
       },
     ],
