@@ -40,17 +40,20 @@ class PatientAdminForm(forms.ModelForm):
 @admin.register(Patient)
 class PatientAdmin(ModelAdmin):
     form = PatientAdminForm
-    
-    list_display = ('name', 'species', 'breed', 'owner', 'birth_date', 'photo_url')
-    list_filter = ('species', 'is_active')
+
+    list_display = ('name', 'species', 'breed', 'owner', 'clinic', 'birth_date', 'photo_url')
+    list_filter = ('species', 'is_active', 'clinic')
     search_fields = ('name', 'owner__full_name', 'owner__email')
     ordering = ('-created_at',)
-    
-    autocomplete_fields = ['owner']
-    
+
+    autocomplete_fields = ['owner', 'clinic']
+
     fieldsets = (
         ('Propietario', {
             'fields': ('owner',)
+        }),
+        ('Clínica', {
+            'fields': ('clinic',)
         }),
         ('Datos del Paciente', {
             'fields': ('name', 'species', 'breed', 'birth_date', 'current_weight')
