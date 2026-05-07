@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { clinicService } from '@/features/clinics/api/clinic.service';
-import { useClinics } from '@/features/clinics/hooks/useClinics';
+import { useClinic } from '@/features/clinics/context/ClinicContext';
 import { DataPolicy, DataAuthorization, ClinicMinimal } from '@/features/clinics/types/clinic.model';
 
 export const AcceptTermsPage = () => {
@@ -17,7 +17,7 @@ export const AcceptTermsPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { activeClinic, setActiveClinic } = useClinics();
+  const { activeClinic, setActiveClinic } = useClinic();
   const navigate = useNavigate();
 
   useEffect(() => {
