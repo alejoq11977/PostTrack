@@ -35,12 +35,11 @@ class ClinicService:
 
 class VetClinicService:
     @staticmethod
-    def link_vet_to_clinic(veterinarian, clinic, role='VETERINARIAN'):
+    def link_vet_to_clinic(veterinarian, clinic):
         vet_clinic, created = VetClinic.objects.update_or_create(
             veterinarian=veterinarian,
             clinic=clinic,
             defaults={
-                'role': role,
                 'is_active': True,
                 'unlinked_at': None
             }

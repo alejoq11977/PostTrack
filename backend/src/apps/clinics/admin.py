@@ -16,11 +16,19 @@ class ClinicAdmin(ModelAdmin):
 
 @admin.register(VetClinic)
 class VetClinicAdmin(ModelAdmin):
-    list_display = ['veterinarian', 'clinic', 'role', 'is_active', 'linked_at', 'unlinked_at']
-    list_filter = ['is_active', 'role', 'clinic']
+    list_display = ['veterinarian', 'clinic', 'is_active', 'linked_at', 'unlinked_at']
+    list_filter = ['is_active', 'clinic']
     search_fields = ['veterinarian__full_name', 'veterinarian__email', 'clinic__name']
-    raw_id_fields = ['veterinarian', 'clinic']
+    autocomplete_fields = ['veterinarian', 'clinic']
     ordering = ['-linked_at']
+
+    fieldsets = (
+        ('Vínculo', {
+            'fields': ('veterinarian', 'clinic', 'is_active')
+        }),
+    )
+
+    readonly_fields = ['linked_at', 'unlinked_at']
 
     actions = ['unlink_veterinarians']
 

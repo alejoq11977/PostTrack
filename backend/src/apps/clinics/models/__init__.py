@@ -19,11 +19,6 @@ class Clinic(AuditableModel):
 
 
 class VetClinic(AuditableModel):
-    ROLE_CHOICES = [
-        ('ADMIN', 'Administrador'),
-        ('VETERINARIAN', 'Veterinario'),
-    ]
-
     veterinarian = models.ForeignKey(
         'users.User',
         on_delete=models.CASCADE,
@@ -36,20 +31,20 @@ class VetClinic(AuditableModel):
         related_name='vet_clinics',
         verbose_name="Clínica"
     )
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='VETERINARIAN')
     is_active = models.BooleanField(default=True, verbose_name="Vínculo activo")
     linked_at = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de vínculo")
     unlinked_at = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de desvinculación")
 
     class Meta:
-        verbose_name = "Vínculo Veterinario-Clínica"
-        verbose_name_plural = "Vínculos Veterinario-Clínica"
+        verbose_name = "Veterinario por Clínica"
+        verbose_name_plural = "Veterinarios por Clínica"
         unique_together = ['veterinarian', 'clinic']
         ordering = ['-linked_at']
 
     def __str__(self):
         status = "Activo" if self.is_active else "Inactivo"
-        return f"{self.veterinarian.full_name} - {self.clinic.name} ({status})"
+        role_label = self.veterinarian.role
+        return f"{self.veterinarian.full_name} ({role_label}) - {self.clinic.name} [{status}]"
 
     def unlink(self):
         from django.utils import timezone

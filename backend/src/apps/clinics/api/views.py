@@ -60,8 +60,7 @@ class VetClinicLinkAPIView(APIView):
         if serializer.is_valid():
             vet_clinic = VetClinicService.link_vet_to_clinic(
                 veterinarian=serializer.validated_data['veterinarian'],
-                clinic=serializer.validated_data['clinic'],
-                role=serializer.validated_data.get('role', 'VETERINARIAN')
+                clinic=serializer.validated_data['clinic']
             )
             return Response(
                 VetClinicSerializer(vet_clinic).data,

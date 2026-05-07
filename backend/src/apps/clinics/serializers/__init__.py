@@ -21,17 +21,18 @@ class ClinicMinimalSerializer(serializers.ModelSerializer):
 class VetClinicSerializer(serializers.ModelSerializer):
     clinic = ClinicMinimalSerializer(read_only=True)
     veterinarian_name = serializers.CharField(source='veterinarian.full_name', read_only=True)
+    veterinarian_role = serializers.CharField(source='veterinarian.role', read_only=True)
 
     class Meta:
         model = VetClinic
-        fields = ['id', 'veterinarian', 'veterinarian_name', 'clinic', 'role', 'is_active', 'linked_at', 'unlinked_at']
+        fields = ['id', 'veterinarian', 'veterinarian_name', 'veterinarian_role', 'clinic', 'is_active', 'linked_at', 'unlinked_at']
         read_only_fields = ['id', 'linked_at', 'unlinked_at']
 
 
 class VetClinicCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = VetClinic
-        fields = ['veterinarian', 'clinic', 'role']
+        fields = ['veterinarian', 'clinic']
 
 
 class DataPolicySerializer(serializers.ModelSerializer):
