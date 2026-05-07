@@ -1,8 +1,8 @@
 import { useNavigate } from 'react-router-dom';
-import { useClinics } from '@/features/clinics/hooks/useClinics';
+import { useClinic } from '@/features/clinics/context/ClinicContext';
 
 export const ClinicSelector = () => {
-  const { clinics, setActiveClinic, isLoading, error } = useClinics();
+  const { clinics, setActiveClinic, isLoading, error } = useClinic();
   const navigate = useNavigate();
 
   const handleSelectClinic = (clinicId: number) => {

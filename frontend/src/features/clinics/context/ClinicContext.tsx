@@ -1,4 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { auth } from '@/app/providers/firebase';
 import { clinicService } from '../api/clinic.service';
 import { Clinic } from '../types/clinic.model';
 
@@ -21,8 +23,12 @@ export const ClinicProvider = ({ children }: { children: ReactNode }) => {
   const [activeClinic, setActiveClinicState] = useState<Clinic | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
 
   const fetchClinics = useCallback(async () => {
+    if (!firebaseUser) {
+      return [];
+    }
     try {
       const data = await clinicService.getClinics();
       setClinics(data);
@@ -33,27 +39,35 @@ export const ClinicProvider = ({ children }: { children: ReactNode }) => {
       console.error(err);
       return [];
     }
-  }, []);
+  }, [firebaseUser]);
 
   useEffect(() => {
-    const initialize = async () => {
-      setIsLoading(true);
-      const clinicsData = await fetchClinics();
+    const unsubscribe = onAuthStateChanged(auth, async (currentFirebaseUser) => {
+      setFirebaseUser(currentFirebaseUser);
 
-      const storedClinicId = localStorage.getItem(CLINIC_STORAGE_KEY);
-      if (storedClinicId) {
-        const clinicId = parseInt(storedClinicId, 10);
-        const found = clinicsData.find((c) => c.id === clinicId);
-        if (found) {
-          setActiveClinicState(found);
-        } else {
-          localStorage.removeItem(CLINIC_STORAGE_KEY);
+      if (currentFirebaseUser) {
+        setIsLoading(true);
+        const clinicsData = await fetchClinics();
+
+        const storedClinicId = localStorage.getItem(CLINIC_STORAGE_KEY);
+        if (storedClinicId) {
+          const clinicId = parseInt(storedClinicId, 10);
+          const found = clinicsData.find((c) => c.id === clinicId);
+          if (found) {
+            setActiveClinicState(found);
+          } else {
+            localStorage.removeItem(CLINIC_STORAGE_KEY);
+          }
         }
+        setIsLoading(false);
+      } else {
+        setClinics([]);
+        setActiveClinicState(null);
+        setIsLoading(false);
       }
-      setIsLoading(false);
-    };
+    });
 
-    initialize();
+    return () => unsubscribe();
   }, [fetchClinics]);
 
   const setActiveClinic = useCallback((clinic: Clinic | null) => {
