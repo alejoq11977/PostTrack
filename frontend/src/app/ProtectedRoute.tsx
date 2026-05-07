@@ -5,8 +5,8 @@ import { useClinic } from '@/features/clinics/context/ClinicContext';
 import { clinicService } from '@/features/clinics/api/clinic.service';
 
 export const ProtectedRoute = () => {
-  const { user, isLoading } = useAuth();
-  const { clinics, activeClinic, isLoading: isClinicLoading } = useClinic();
+  const { user, isLoading: isAuthLoading } = useAuth();
+  const { clinics, activeClinic, isLoading: isClinicLoading, isInitialized } = useClinic();
   const location = useLocation();
 
   const [pendingTerms, setPendingTerms] = useState<{ clinic_id: number } | null>(null);
@@ -46,7 +46,7 @@ export const ProtectedRoute = () => {
     checkPendingTerms();
   }, [user, activeClinic, location.pathname, checkingTerms, isAuthRoute, isCompleteProfileRoute, isAcceptTermsRoute, isSelectClinicRoute, isPolicyRoute, isAuthorizationRoute]);
 
-  if (isLoading || isClinicLoading) {
+  if (isAuthLoading || !isInitialized) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="w-8 h-8 border-4 border-brand-200 border-t-brand-500 rounded-full animate-spin"></div>
@@ -84,19 +84,30 @@ export const ProtectedRoute = () => {
     );
   }
 
+  const hasOnlyOneClinic = clinics.length === 1;
+
   if (!activeClinic) {
     if (isSelectClinicRoute) {
+      return <Outlet />;
+    }
+    if (isPolicyRoute || isAuthorizationRoute) {
+      return <Outlet />;
+    }
+    if (hasOnlyOneClinic) {
       return <Outlet />;
     }
     return <Navigate to="/select-clinic" replace />;
   }
 
-  if (pendingTerms && !isAcceptTermsRoute && !isPolicyRoute && !isAuthorizationRoute) {
-    return <Navigate to={`/accept-terms?clinica_id=${pendingTerms.clinic_id}`} replace />;
+  if (isSelectClinicRoute) {
+    if (hasOnlyOneClinic) {
+      return <Navigate to="/" replace />;
+    }
+    return <Outlet />;
   }
 
-  if (isSelectClinicRoute) {
-    return <Navigate to="/" replace />;
+  if (pendingTerms && !isAcceptTermsRoute && !isPolicyRoute && !isAuthorizationRoute) {
+    return <Navigate to={`/accept-terms?clinica_id=${pendingTerms.clinic_id}`} replace />;
   }
 
   return <Outlet />;

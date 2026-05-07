@@ -5,6 +5,7 @@ import { DataPolicy } from '@/features/clinics/types/clinic.model';
 
 export const PolicyPage = () => {
   const [searchParams] = useSearchParams();
+  const policyId = searchParams.get('policy_id');
   const clinicId = searchParams.get('clinica_id');
 
   const [policy, setPolicy] = useState<DataPolicy | null>(null);
@@ -13,18 +14,23 @@ export const PolicyPage = () => {
 
   useEffect(() => {
     const loadPolicy = async () => {
-      if (!clinicId) {
-        setError('ID de clínica no proporcionado');
+      if (!policyId && !clinicId) {
+        setError('ID de política o clínica no proporcionado');
         setIsLoading(false);
         return;
       }
 
       try {
-        const pendingData = await clinicService.getPendingTerms(parseInt(clinicId, 10));
-        if (pendingData.policy) {
-          setPolicy(pendingData.policy);
-        } else {
-          setError('No hay política de tratamiento de datos disponible para esta clínica.');
+        if (policyId) {
+          const data = await clinicService.getPolicy(parseInt(policyId, 10));
+          setPolicy(data);
+        } else if (clinicId) {
+          const pendingData = await clinicService.getPendingTerms(parseInt(clinicId, 10));
+          if (pendingData.policy) {
+            setPolicy(pendingData.policy);
+          } else {
+            setError('No hay política de tratamiento de datos disponible para esta clínica.');
+          }
         }
       } catch (err) {
         setError('Error al cargar la política de tratamiento de datos');
@@ -35,7 +41,7 @@ export const PolicyPage = () => {
     };
 
     loadPolicy();
-  }, [clinicId]);
+  }, [clinicId, policyId]);
 
   if (isLoading) {
     return (
@@ -78,7 +84,7 @@ export const PolicyPage = () => {
             </div>
             <div className="mt-6">
               <Link
-                to={`/accept-terms?clinica_id=${clinicId}`}
+                to={`/accept-terms?clinica_id=${clinicId || policy?.clinic}`}
                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-brand-600 hover:bg-brand-700"
               >
                 Volver a Términos

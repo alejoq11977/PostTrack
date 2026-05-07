@@ -81,13 +81,13 @@ export const AcceptTermsPage = () => {
 
   const handleViewPolicy = () => {
     if (policy) {
-      window.open(`/politica-datos?clinica_id=${clinicId}`, '_blank');
+      navigate(`/politica-datos?clinica_id=${clinicId}&policy_id=${policy.id}`);
     }
   };
 
   const handleViewAuthorization = () => {
     if (authorization) {
-      window.open(`/autorizacion-datos?clinica_id=${clinicId}`, '_blank');
+      navigate(`/autorizacion-datos?clinica_id=${clinicId}&authorization_id=${authorization.id}`);
     }
   };
 
@@ -127,23 +127,21 @@ export const AcceptTermsPage = () => {
           </div>
 
           <div className="mb-4">
-            <a
-              href="#"
-              onClick={(e) => { e.preventDefault(); handleViewPolicy(); }}
-              className="text-brand-600 hover:text-brand-700 font-medium underline"
+            <button
+              onClick={handleViewPolicy}
+              className="text-brand-600 hover:text-brand-700 font-medium underline bg-transparent border-none cursor-pointer"
             >
               POLÍTICA DE TRATAMIENTO Y PROTECCIÓN DE DATOS PERSONALES
-            </a>
+            </button>
           </div>
 
           <div className="mb-6">
-            <a
-              href="#"
-              onClick={(e) => { e.preventDefault(); handleViewAuthorization(); }}
-              className="text-brand-600 hover:text-brand-700 font-medium underline"
+            <button
+              onClick={handleViewAuthorization}
+              className="text-brand-600 hover:text-brand-700 font-medium underline bg-transparent border-none cursor-pointer"
             >
               AUTORIZACIÓN PARA EL TRATAMIENTO DE DATOS PERSONALES
-            </a>
+            </button>
           </div>
 
           <div className="flex items-start mb-6">

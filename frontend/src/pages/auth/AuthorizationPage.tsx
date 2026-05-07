@@ -5,6 +5,7 @@ import { DataAuthorization } from '@/features/clinics/types/clinic.model';
 
 export const AuthorizationPage = () => {
   const [searchParams] = useSearchParams();
+  const authorizationId = searchParams.get('authorization_id');
   const clinicId = searchParams.get('clinica_id');
 
   const [authorization, setAuthorization] = useState<DataAuthorization | null>(null);
@@ -13,18 +14,23 @@ export const AuthorizationPage = () => {
 
   useEffect(() => {
     const loadAuthorization = async () => {
-      if (!clinicId) {
-        setError('ID de clínica no proporcionado');
+      if (!authorizationId && !clinicId) {
+        setError('ID de autorización o clínica no proporcionado');
         setIsLoading(false);
         return;
       }
 
       try {
-        const pendingData = await clinicService.getPendingTerms(parseInt(clinicId, 10));
-        if (pendingData.authorization) {
-          setAuthorization(pendingData.authorization);
-        } else {
-          setError('No hay autorización de tratamiento de datos disponible para esta clínica.');
+        if (authorizationId) {
+          const data = await clinicService.getAuthorization(parseInt(authorizationId, 10));
+          setAuthorization(data);
+        } else if (clinicId) {
+          const pendingData = await clinicService.getPendingTerms(parseInt(clinicId, 10));
+          if (pendingData.authorization) {
+            setAuthorization(pendingData.authorization);
+          } else {
+            setError('No hay autorización de tratamiento de datos disponible para esta clínica.');
+          }
         }
       } catch (err) {
         setError('Error al cargar la autorización de tratamiento de datos');
@@ -35,7 +41,7 @@ export const AuthorizationPage = () => {
     };
 
     loadAuthorization();
-  }, [clinicId]);
+  }, [clinicId, authorizationId]);
 
   if (isLoading) {
     return (
@@ -78,7 +84,7 @@ export const AuthorizationPage = () => {
             </div>
             <div className="mt-6">
               <Link
-                to={`/accept-terms?clinica_id=${clinicId}`}
+                to={`/accept-terms?clinica_id=${clinicId || authorization?.clinic}`}
                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-brand-600 hover:bg-brand-700"
               >
                 Volver a Términos

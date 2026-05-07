@@ -35,4 +35,5 @@ class Patient(AuditableModel):
         ]
 
     def __str__(self):
-        return f"{self.name} - {self.species}"
+        clinic_str = f" [{self.clinic.name}]" if self.clinic else ""
+        return f"{self.name} - {self.species}{clinic_str}"

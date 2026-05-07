@@ -6,10 +6,16 @@ import { Clinic } from '../types/clinic.model';
 
 const CLINIC_STORAGE_KEY = 'posttrack_active_clinic_id';
 
+const getStoredClinicId = (): number | null => {
+  const stored = localStorage.getItem(CLINIC_STORAGE_KEY);
+  return stored ? parseInt(stored, 10) : null;
+};
+
 interface ClinicContextType {
   clinics: Clinic[];
   activeClinic: Clinic | null;
   isLoading: boolean;
+  isInitialized: boolean;
   error: string | null;
   setActiveClinic: (clinic: Clinic | null) => void;
   clearActiveClinic: () => void;
@@ -20,13 +26,17 @@ const ClinicContext = createContext<ClinicContextType | null>(null);
 
 export const ClinicProvider = ({ children }: { children: ReactNode }) => {
   const [clinics, setClinics] = useState<Clinic[]>([]);
-  const [activeClinic, setActiveClinicState] = useState<Clinic | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [activeClinic, setActiveClinicState] = useState<Clinic | null>(() => {
+    const storedId = getStoredClinicId();
+    return storedId ? ({ id: storedId } as Clinic) : null;
+  });
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  const fetchClinics = useCallback(async () => {
-    if (!firebaseUser) {
+  const fetchClinics = useCallback(async (firebaseUserUid?: string) => {
+    if (!firebaseUserUid) {
       return [];
     }
     try {
@@ -39,36 +49,61 @@ export const ClinicProvider = ({ children }: { children: ReactNode }) => {
       console.error(err);
       return [];
     }
-  }, [firebaseUser]);
+  }, []);
 
   useEffect(() => {
+    let isMounted = true;
     const unsubscribe = onAuthStateChanged(auth, async (currentFirebaseUser) => {
       setFirebaseUser(currentFirebaseUser);
 
       if (currentFirebaseUser) {
         setIsLoading(true);
-        const clinicsData = await fetchClinics();
+        try {
+          const clinicsData = await clinicService.getClinics();
+          if (isMounted) {
+            setClinics(clinicsData);
 
-        const storedClinicId = localStorage.getItem(CLINIC_STORAGE_KEY);
-        if (storedClinicId) {
-          const clinicId = parseInt(storedClinicId, 10);
-          const found = clinicsData.find((c) => c.id === clinicId);
-          if (found) {
-            setActiveClinicState(found);
-          } else {
-            localStorage.removeItem(CLINIC_STORAGE_KEY);
+            const storedClinicId = getStoredClinicId();
+            if (storedClinicId !== null) {
+              const found = clinicsData.find((c) => c.id === storedClinicId);
+              if (found) {
+                setActiveClinicState(found);
+              } else {
+                localStorage.removeItem(CLINIC_STORAGE_KEY);
+              }
+            } else if (clinicsData.length === 1) {
+              setActiveClinicState(clinicsData[0]);
+              localStorage.setItem(CLINIC_STORAGE_KEY, clinicsData[0].id.toString());
+            }
+            setIsInitialized(true);
+          }
+        } catch (err) {
+          if (isMounted) {
+            setError('Error al cargar las clínicas');
+            console.error(err);
+            setIsInitialized(true);
+          }
+        } finally {
+          if (isMounted) {
+            setIsLoading(false);
           }
         }
-        setIsLoading(false);
       } else {
-        setClinics([]);
-        setActiveClinicState(null);
-        setIsLoading(false);
+        if (isMounted) {
+          setClinics([]);
+          setActiveClinicState(null);
+          localStorage.removeItem(CLINIC_STORAGE_KEY);
+          setIsInitialized(true);
+          setIsLoading(false);
+        }
       }
     });
 
-    return () => unsubscribe();
-  }, [fetchClinics]);
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, []);
 
   const setActiveClinic = useCallback((clinic: Clinic | null) => {
     setActiveClinicState(clinic);
@@ -96,6 +131,7 @@ export const ClinicProvider = ({ children }: { children: ReactNode }) => {
         clinics,
         activeClinic,
         isLoading,
+        isInitialized,
         error,
         setActiveClinic,
         clearActiveClinic,

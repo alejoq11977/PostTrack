@@ -1,14 +1,18 @@
 import { useState } from 'react';
 import { Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { useClinic } from '@/features/clinics/context/ClinicContext';
 import { Logo } from '../common/Logo';
-import { LogOut, Home, Users, AlertCircle, Menu, X, UserPen } from 'lucide-react';
+import { LogOut, Home, Users, AlertCircle, Menu, X, UserPen, Building2, ChevronDown } from 'lucide-react';
 
 export const MainLayout = () => {
   const { user, logout } = useAuth();
+  const { activeClinic, clinics } = useClinic();
   const navigate = useNavigate();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const hasMultipleClinics = clinics.length > 1;
 
   const isVet = user?.role === 'VETERINARIAN' || user?.role === 'ADMIN';
 
@@ -191,6 +195,27 @@ export const MainLayout = () => {
 
         <div className="flex-1 overflow-y-auto p-6 md:p-10">
           <div className="max-w-5xl mx-auto">
+            {activeClinic && (
+              <div className="mb-6 flex items-center justify-between bg-brand-50 border border-brand-100 rounded-lg px-4 py-2.5">
+                <div className="flex items-center gap-2">
+                  <Building2 size={16} className="text-brand-600" />
+                  <span className="text-sm text-brand-700 font-medium">
+                    Clínica:
+                  </span>
+                  <span className="text-sm text-brand-800 font-semibold">
+                    {activeClinic.name}
+                  </span>
+                </div>
+                {hasMultipleClinics && (
+                  <button
+                    onClick={() => navigate('/select-clinic')}
+                    className="text-xs text-brand-600 hover:text-brand-800 font-medium underline"
+                  >
+                    Cambiar clínica
+                  </button>
+                )}
+              </div>
+            )}
             <Outlet />
           </div>
         </div>

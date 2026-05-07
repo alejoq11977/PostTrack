@@ -10,8 +10,10 @@ export interface SubmitReportPayload {
 }
 
 export const patientsService = {
-  getPatients: async (): Promise<Patient[]> => {
-    const response = await apiClient.get<Patient[]>('/patients/');
+
+  getPatients: async (clinicId?: number): Promise<Patient[]> => {
+    const params = clinicId ? `?clinic_id=${clinicId}` : '';
+    const response = await apiClient.get<Patient[]>(`/patients/${params}`);
     return response.data;
   },
   

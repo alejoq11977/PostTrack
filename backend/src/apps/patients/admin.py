@@ -1,6 +1,7 @@
 # backend/src/apps/patients/admin.py
 from django import forms
 from django.contrib import admin
+from django.utils.html import format_html
 from unfold.admin import ModelAdmin
 from .models import Patient
 from apps.core.services.imgbb import upload_image_to_imgbb
@@ -8,11 +9,12 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class PatientAdminForm(forms.ModelForm):
     image_upload = forms.ImageField(
-        required=False, 
+        required=False,
         label="Subir foto desde la PC",
-        help_text="Sube una imagen aquí. El sistema la enviará a ImgBB y llenará el campo 'Photo url' automáticamente."
+        help_text="Sube una imagen aquí. El sistema la enviará a ImgBB y llenará el campo 'photo_url' automáticamente."
     )
 
     class Meta:
@@ -25,7 +27,7 @@ class PatientAdminForm(forms.ModelForm):
     def save(self, commit=True):
         instance = super().save(commit=False)
         image_file = self.cleaned_data.get('image_upload')
-        
+
         if image_file:
             logger.info(f"Subiendo foto de {instance.name} a ImgBB desde el Admin...")
             url = upload_image_to_imgbb(image_file)
@@ -37,33 +39,56 @@ class PatientAdminForm(forms.ModelForm):
             instance.save()
         return instance
 
+
 @admin.register(Patient)
 class PatientAdmin(ModelAdmin):
     form = PatientAdminForm
 
-    list_display = ('name', 'species', 'breed', 'owner', 'clinic', 'birth_date', 'photo_url')
-    list_filter = ('species', 'is_active', 'clinic')
-    search_fields = ('name', 'owner__full_name', 'owner__email')
+    list_display = ('name', 'species', 'breed', 'owner', 'clinic', 'managed_by_display', 'birth_date', 'is_active')
+    list_display_links = ('name',)
+    list_filter = ('species', 'is_active', 'clinic', 'created_at')
+    search_fields = ('name', 'owner__full_name', 'owner__email', 'owner__identification_number', 'breed')
     ordering = ('-created_at',)
-
     autocomplete_fields = ['owner', 'clinic']
 
+    list_select_related = ('owner', 'clinic')
+
     fieldsets = (
+        ('Identificación', {
+            'fields': ('name', 'species', 'breed', 'birth_date')
+        }),
         ('Propietario', {
             'fields': ('owner',)
         }),
         ('Clínica', {
             'fields': ('clinic',)
         }),
-        ('Datos del Paciente', {
-            'fields': ('name', 'species', 'breed', 'birth_date', 'current_weight')
+        ('Información Médica', {
+            'fields': ('current_weight',)
         }),
-        ('Fotografía (Elige una opción)', {
-            'fields': ('image_upload', 'photo_url'),
-            'description': "Puedes pegar una URL directa en 'Photo url', O subir una foto desde tu computadora usando 'Subir foto desde la PC'."
+        ('Fotografía', {
+            'fields': ('photo_url', 'image_upload'),
+            'description': "Puedes pegar una URL directa en 'photo_url', O subir una foto desde tu computadora usando 'image_upload'."
         }),
-        ('Auditoría', {
-            'fields': ('is_active',),
-            'classes': ('collapse',)
+        ('Estado', {
+            'fields': ('is_active',)
         }),
     )
+
+    def managed_by_display(self, obj):
+        if obj.owner and obj.owner.managed_by:
+            return format_html(
+                '<span class="text-sm">{}</span>',
+                obj.owner.managed_by.full_name
+            )
+        return '-'
+    managed_by_display.short_description = 'Gestionado por'
+    managed_by_display.admin_order_field = 'owner__managed_by__full_name'
+
+    def get_readonly_fields(self, request, obj=None):
+        readonly = ['created_at', 'updated_at']
+        return readonly
+
+    def get_search_results(self, request, queryset, search_term):
+        queryset, use_distinct = super().get_search_results(request, queryset, search_term)
+        return queryset, use_distinct
