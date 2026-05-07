@@ -20,9 +20,6 @@ export const PolicyPage = () => {
       }
 
       try {
-        const clinics = await clinicService.getClinics();
-        const clinic = clinics.find((c) => c.id === parseInt(clinicId, 10));
-
         const pendingData = await clinicService.getPendingTerms(parseInt(clinicId, 10));
         if (pendingData.policy) {
           setPolicy(pendingData.policy);

@@ -8,7 +8,6 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('users', '0003_privacypolicyversion_alter_user_terms_accepted_ip_and_more'),
-        ('core', '0001_initial'),
     ]
 
     operations = [
@@ -129,15 +128,5 @@ class Migration(migrations.Migration):
                 'verbose_name_plural': 'Logs de Auditoría de Clínica',
                 'ordering': ['-timestamp'],
             },
-        ),
-        migrations.AddField(
-            model_name='datapolicy',
-            name='is_active',
-            field=models.BooleanField(default=False, verbose_name='Política activa'),
-        ),
-        migrations.AddField(
-            model_name='dataauthorization',
-            name='is_active',
-            field=models.BooleanField(default=False, verbose_name='Autorización activa'),
         ),
     ]

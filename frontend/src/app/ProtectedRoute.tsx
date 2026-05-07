@@ -6,7 +6,7 @@ import { clinicService } from '@/features/clinics/api/clinic.service';
 
 export const ProtectedRoute = () => {
   const { user, isLoading } = useAuth();
-  const { clinics, activeClinic, setActiveClinic, isLoading: isClinicLoading } = useClinic();
+  const { clinics, activeClinic, isLoading: isClinicLoading } = useClinic();
   const location = useLocation();
 
   const [pendingTerms, setPendingTerms] = useState<{ clinic_id: number } | null>(null);
