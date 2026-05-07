@@ -1,8 +1,11 @@
 import { useNavigate } from 'react-router-dom';
+import { LogOut } from 'lucide-react';
 import { useClinic } from '@/features/clinics/context/ClinicContext';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 
 export const ClinicSelector = () => {
   const { clinics, setActiveClinic, isLoading, error } = useClinic();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleSelectClinic = (clinicId: number) => {
@@ -11,6 +14,11 @@ export const ClinicSelector = () => {
       setActiveClinic(clinic);
       navigate('/');
     }
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
   };
 
   if (isLoading) {
@@ -23,6 +31,15 @@ export const ClinicSelector = () => {
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
+      {user && (
+        <button
+          onClick={handleLogout}
+          className="absolute top-4 right-4 flex items-center gap-2 px-3 py-1.5 text-sm text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors z-10"
+        >
+          <LogOut size={16} />
+          Cerrar sesión
+        </button>
+      )}
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <h2 className="text-center text-3xl font-extrabold text-gray-900 mb-2">
           Selecciona una Clínica

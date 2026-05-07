@@ -1,16 +1,23 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
+import { LogOut } from 'lucide-react';
 import { clinicService } from '@/features/clinics/api/clinic.service';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { DataPolicy } from '@/features/clinics/types/clinic.model';
 
 export const PolicyPage = () => {
   const [searchParams] = useSearchParams();
   const policyId = searchParams.get('policy_id');
   const clinicId = searchParams.get('clinica_id');
+  const { user, logout } = useAuth();
 
   const [policy, setPolicy] = useState<DataPolicy | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const handleLogout = async () => {
+    await logout();
+  };
 
   useEffect(() => {
     const loadPolicy = async () => {
@@ -68,6 +75,15 @@ export const PolicyPage = () => {
 
   return (
     <div className="min-h-screen bg-slate-100 py-8 px-4 sm:px-6 lg:px-8">
+      {user && (
+        <button
+          onClick={handleLogout}
+          className="absolute top-4 right-4 flex items-center gap-2 px-3 py-1.5 text-sm text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors z-10"
+        >
+          <LogOut size={16} />
+          Cerrar sesión
+        </button>
+      )}
       <div className="max-w-3xl mx-auto">
         <div className="bg-white shadow sm:rounded-lg">
           <div className="px-4 py-5 sm:p-6">

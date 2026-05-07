@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { LogOut } from 'lucide-react';
 import { clinicService } from '@/features/clinics/api/clinic.service';
 import { useClinic } from '@/features/clinics/context/ClinicContext';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { DataPolicy, DataAuthorization, ClinicMinimal } from '@/features/clinics/types/clinic.model';
 
 export const AcceptTermsPage = () => {
@@ -18,7 +20,13 @@ export const AcceptTermsPage = () => {
   const [error, setError] = useState<string | null>(null);
 
   const { activeClinic, setActiveClinic } = useClinic();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
 
   useEffect(() => {
     const loadTerms = async () => {
@@ -111,6 +119,15 @@ export const AcceptTermsPage = () => {
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
+      {user && (
+        <button
+          onClick={handleLogout}
+          className="absolute top-4 right-4 flex items-center gap-2 px-3 py-1.5 text-sm text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors z-10"
+        >
+          <LogOut size={16} />
+          Cerrar sesión
+        </button>
+      )}
       <div className="sm:mx-auto sm:w-full sm:max-w-2xl">
         <h2 className="text-center text-3xl font-extrabold text-gray-900 mb-2">
           Tratamiento de Datos Personales
