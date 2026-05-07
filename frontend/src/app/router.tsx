@@ -12,6 +12,7 @@ import { ProfilePage } from '@/pages/owner/ProfilePage';
 import { ClinicSelector } from '@/features/clinics/components/ClinicSelector';
 import { PolicyPage } from '@/pages/auth/PolicyPage';
 import { AuthorizationPage } from '@/pages/auth/AuthorizationPage';
+import { AlertsPage } from '@/pages/vet/AlertsPage';
 
 export const router = createBrowserRouter([
   {
@@ -40,6 +41,10 @@ export const router = createBrowserRouter([
       {
         path: '/autorizacion-datos',
         element: <AuthorizationPage />,
+      },
+      {
+        path: '/alerts',
+        element: <AlertsPage />,
       },
       {
         element: <MainLayout />,
