@@ -33,7 +33,7 @@ class RiskRuleForm(forms.ModelForm):
 
     class Meta:
         model = RiskRule
-        fields = '__all__'
+        fields = ['name', 'description', 'is_active']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
