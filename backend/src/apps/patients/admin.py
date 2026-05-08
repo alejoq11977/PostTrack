@@ -39,7 +39,7 @@ class RiskRuleForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         questions = GeneralQuestion.objects.filter(is_active=True).order_by('id')
         self.fields['selected_questions'].choices = [
-            (q.id, q.text[:80] + ('...' if len(q.text) > 80 else ''))
+            (str(q.id), q.text[:80] + ('...' if len(q.text) > 80 else ''))
             for q in questions
         ]
         self.fields['selected_questions'].widget.attrs.update({
@@ -47,7 +47,7 @@ class RiskRuleForm(forms.ModelForm):
         })
 
         if self.instance and self.instance.pk:
-            self.fields['selected_questions'].initial = self.instance.question_ids or []
+            self.fields['selected_questions'].initial = [str(x) for x in (self.instance.question_ids or [])]
             self.fields['points_low'].initial = self.instance.points.get('LOW', 0)
             self.fields['points_medium'].initial = self.instance.points.get('MEDIUM', 0)
             self.fields['points_high'].initial = self.instance.points.get('HIGH', 0)

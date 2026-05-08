@@ -62,7 +62,7 @@ export const FormResultPage = () => {
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 text-center">
         <p className="text-sm text-slate-500">
-          Puede consultar el historial de sus reportes en cualquier momento desde la página principal.
+          Puede consultar el historial de sus reportes en cualquier momento para ver el estado de su reporte.
         </p>
       </div>
 
