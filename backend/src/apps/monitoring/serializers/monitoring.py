@@ -16,11 +16,19 @@ class MonitoringFormSerializer(serializers.ModelSerializer):
     Este serializador agrupa la información de la cirugía y las preguntas personalizadas.
     """
     custom_questions = CustomQuestionSerializer(many=True, read_only=True)
+    days_since_surgery = serializers.SerializerMethodField()
 
     class Meta:
         model = SurgicalMonitoring
-        fields = ('id', 'surgery_type', 'surgery_date', 'custom_questions')
-    
+        fields = ('id', 'surgery_type', 'surgery_date', 'custom_questions', 'days_since_surgery')
+
+    def get_days_since_surgery(self, obj):
+        from datetime import datetime
+        if obj.surgery_date:
+            delta = datetime.now().replace(tzinfo=obj.surgery_date.tzinfo) - obj.surgery_date
+            return delta.days
+        return 0
+
 class VisualEvidenceSerializer(serializers.ModelSerializer):
     class Meta:
         model = VisualEvidence
@@ -44,11 +52,18 @@ class AnswerSerializer(serializers.ModelSerializer):
 class ReportHistorySerializer(serializers.ModelSerializer):
     answers = AnswerSerializer(many=True, read_only=True)
     evidences = VisualEvidenceSerializer(many=True, read_only=True)
+    day_number = serializers.SerializerMethodField()
 
     class Meta:
         model = Report
         fields = (
-            'id', 'submitted_at', 'calculated_risk', 'validated_risk', 
-            'review_status', 'processing_status', 'medical_notes', 
-            'answers', 'evidences'
+            'id', 'submitted_at', 'calculated_risk', 'validated_risk',
+            'review_status', 'processing_status', 'medical_notes',
+            'answers', 'evidences', 'day_number'
         )
+
+    def get_day_number(self, obj):
+        if obj.monitoring and obj.monitoring.surgery_date:
+            delta = obj.submitted_at.replace(tzinfo=obj.monitoring.surgery_date.tzinfo) - obj.monitoring.surgery_date
+            return delta.days + 1
+        return 1
