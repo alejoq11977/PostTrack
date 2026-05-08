@@ -1,6 +1,6 @@
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from django.http import StreamingHttpResponse
 import json
@@ -22,7 +22,7 @@ class VetReportsListView(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        clinic_ids = VetClinic.objects.filter(user=user, is_active=True).values_list('clinic_id', flat=True)
+        clinic_ids = VetClinic.objects.filter(veterinarian=user, is_active=True).values_list('clinic_id', flat=True)
 
         queryset = Report.objects.filter(
             monitoring__patient__clinic_id__in=clinic_ids
@@ -48,7 +48,7 @@ class VetReportsDetailView(generics.RetrieveAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        clinic_ids = VetClinic.objects.filter(user=user, is_active=True).values_list('clinic_id', flat=True)
+        clinic_ids = VetClinic.objects.filter(veterinarian=user, is_active=True).values_list('clinic_id', flat=True)
         return Report.objects.filter(
             monitoring__patient__clinic_id__in=clinic_ids
         ).select_related(
@@ -63,7 +63,7 @@ class VetReportsDetailView(generics.RetrieveAPIView):
 def vet_reports_validate(request, pk):
     try:
         user = request.user
-        clinic_ids = VetClinic.objects.filter(user=user, is_active=True).values_list('clinic_id', flat=True)
+        clinic_ids = VetClinic.objects.filter(veterinarian=user, is_active=True).values_list('clinic_id', flat=True)
         report = Report.objects.get(pk=pk, monitoring__patient__clinic_id__in=clinic_ids)
     except Report.DoesNotExist:
         return Response({'error': 'Report not found'}, status=status.HTTP_404_NOT_FOUND)
@@ -89,7 +89,7 @@ class VetOwnersListView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        clinic_ids = VetClinic.objects.filter(user=user, is_active=True).values_list('clinic_id', flat=True)
+        clinic_ids = VetClinic.objects.filter(veterinarian=user, is_active=True).values_list('clinic_id', flat=True)
 
         queryset = User.objects.filter(
             role='OWNER',
@@ -113,7 +113,7 @@ class VetOwnerDetailView(generics.RetrieveUpdateAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        clinic_ids = VetClinic.objects.filter(user=user, is_active=True).values_list('clinic_id', flat=True)
+        clinic_ids = VetClinic.objects.filter(veterinarian=user, is_active=True).values_list('clinic_id', flat=True)
         return User.objects.filter(
             role='OWNER',
             patients__clinic_id__in=clinic_ids
@@ -126,7 +126,7 @@ class VetPatientsSearchView(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        clinic_ids = VetClinic.objects.filter(user=user, is_active=True).values_list('clinic_id', flat=True)
+        clinic_ids = VetClinic.objects.filter(veterinarian=user, is_active=True).values_list('clinic_id', flat=True)
 
         queryset = Patient.objects.filter(clinic_id__in=clinic_ids, is_active=True).select_related('owner')
 
@@ -147,38 +147,72 @@ class VetMonitoringsListView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        clinic_ids = VetClinic.objects.filter(user=user, is_active=True).values_list('clinic_id', flat=True)
+        clinic_ids = VetClinic.objects.filter(veterinarian=user, is_active=True).values_list('clinic_id', flat=True)
         return SurgicalMonitoring.objects.filter(
             patient__clinic_id__in=clinic_ids
         ).select_related('patient', 'patient__owner').order_by('-created_at')
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def vet_sse_alerts(request):
+    import firebase_admin
+    from firebase_admin import auth as firebase_auth
+    from django.contrib.auth import get_user_model
+
+    if not firebase_admin._apps:
+        from apps.users.services.firebase import initialize_firebase
+        initialize_firebase()
+
+    auth_header = request.META.get('HTTP_AUTHORIZATION')
+    token = None
+
+    if auth_header and auth_header.startswith('Bearer '):
+        token = auth_header.split(' ')[1]
+    elif request.query_params.get('token'):
+        token = request.query_params.get('token')
+
+    if not token:
+        return Response({'error': 'Token required'}, status=401)
+
+    try:
+        decoded = firebase_auth.verify_id_token(token)
+        uid = decoded.get('uid')
+
+        User = get_user_model()
+        try:
+            user = User.objects.get(firebase_uid=uid)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found'}, status=404)
+
+    except Exception as e:
+        return Response({'error': f'Invalid token: {str(e)}'}, status=401)
+
     def event_stream():
-        user = request.user
-        clinic_ids = list(VetClinic.objects.filter(user=user, is_active=True).values_list('clinic_id', flat=True))
+        clinic_ids = list(VetClinic.objects.filter(veterinarian=user, is_active=True).values_list('clinic_id', flat=True))
 
         while True:
-            time.sleep(5)
+            try:
+                time.sleep(5)
 
-            pending_reports = Report.objects.filter(
-                monitoring__patient__clinic_id__in=clinic_ids,
-                review_status='PENDING'
-            ).select_related(
-                'monitoring',
-                'monitoring__patient',
-                'monitoring__patient__owner'
-            ).order_by('submitted_at')[:10]
+                pending_reports = Report.objects.filter(
+                    monitoring__patient__clinic_id__in=clinic_ids,
+                    review_status='PENDING'
+                ).select_related(
+                    'monitoring',
+                    'monitoring__patient',
+                    'monitoring__patient__owner'
+                ).order_by('submitted_at')[:10]
 
-            data = {
-                'type': 'reports_update',
-                'count': pending_reports.count(),
-                'reports': VetReportSerializer(pending_reports, many=True).data
-            }
+                data = {
+                    'type': 'reports_update',
+                    'count': pending_reports.count(),
+                    'reports': VetReportSerializer(pending_reports, many=True).data
+                }
 
-            yield f"data: {json.dumps(data)}\n\n"
+                yield f"data: {json.dumps(data)}\n\n"
+            except GeneratorExit:
+                break
 
     response = StreamingHttpResponse(event_stream(), content_type='text/event-stream')
     response['Cache-Control'] = 'no-cache'
