@@ -16,6 +16,7 @@ import { AlertsPage } from '@/pages/vet/AlertsPage';
 import { FormResultPage } from '@/pages/owner/FormResultPage';
 import { VetDashboardPage } from '@/pages/vet/VetDashboardPage';
 import { VetReportsPage } from '@/pages/vet/VetReportsPage';
+import { VetReportDetailPage } from '@/pages/vet/VetReportDetailPage';
 import { VetUsersPage } from '@/pages/vet/VetUsersPage';
 import { VetMonitoringsPage } from '@/pages/vet/VetMonitoringsPage';
 
@@ -62,6 +63,7 @@ export const router = createBrowserRouter([
           { path: '/form-result', element: <FormResultPage /> },
           { path: '/vet/dashboard', element: <VetDashboardPage /> },
           { path: '/vet/reports', element: <VetReportsPage /> },
+          { path: '/vet/reports/:id', element: <VetReportDetailPage /> },
           { path: '/vet/users', element: <VetUsersPage /> },
           { path: '/vet/monitorings', element: <VetMonitoringsPage /> },
         ],
