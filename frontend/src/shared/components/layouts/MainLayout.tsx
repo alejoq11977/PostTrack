@@ -3,7 +3,8 @@ import { Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useClinic } from '@/features/clinics/context/ClinicContext';
 import { Logo } from '../common/Logo';
-import { LogOut, Home, Users, AlertCircle, Menu, X, UserPen, Building2, ChevronDown } from 'lucide-react';
+import { LogOut, Home, Users, AlertCircle, Menu, X, UserPen, Building2 } from 'lucide-react';
+import { ChangeClinicModal } from '../common/ChangeClinicModal';
 
 export const MainLayout = () => {
   const { user, logout } = useAuth();
@@ -11,10 +12,19 @@ export const MainLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showChangeClinicModal, setShowChangeClinicModal] = useState(false);
 
   const hasMultipleClinics = clinics.length > 1;
 
   const isVet = user?.role === 'VETERINARIAN' || user?.role === 'ADMIN';
+
+  const handleChangeClinic = () => {
+    if (isVet) {
+      setShowChangeClinicModal(true);
+    } else {
+      navigate('/select-clinic');
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -208,7 +218,7 @@ export const MainLayout = () => {
                 </div>
                 {hasMultipleClinics && (
                   <button
-                    onClick={() => navigate('/select-clinic')}
+                    onClick={handleChangeClinic}
                     className="text-xs text-brand-600 hover:text-brand-800 font-medium underline"
                   >
                     Cambiar clínica
@@ -220,6 +230,15 @@ export const MainLayout = () => {
           </div>
         </div>
       </main>
+      {showChangeClinicModal && (
+        <ChangeClinicModal
+          onClose={() => setShowChangeClinicModal(false)}
+          onSuccess={() => {
+            setShowChangeClinicModal(false);
+            navigate('/select-clinic');
+          }}
+        />
+      )}
     </div>
   );
 };

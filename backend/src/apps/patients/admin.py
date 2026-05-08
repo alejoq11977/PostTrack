@@ -1,10 +1,10 @@
-# backend/src/apps/patients/admin.py
 from django import forms
 from django.contrib import admin
 from django.utils.html import format_html
 from unfold.admin import ModelAdmin
-from .models import Patient
+from .models import Patient, RiskRule, RiskThreshold
 from apps.core.services.imgbb import upload_image_to_imgbb
+from apps.monitoring.models.questions import GeneralQuestion
 import logging
 
 logger = logging.getLogger(__name__)
@@ -92,3 +92,52 @@ class PatientAdmin(ModelAdmin):
     def get_search_results(self, request, queryset, search_term):
         queryset, use_distinct = super().get_search_results(request, queryset, search_term)
         return queryset, use_distinct
+
+
+@admin.register(RiskRule)
+class RiskRuleAdmin(ModelAdmin):
+    list_display = ('name', 'questions_summary', 'points_summary', 'is_active', 'created_at')
+    list_filter = ('is_active', 'created_at')
+    search_fields = ('name', 'description')
+    ordering = ('-created_at',)
+
+    fieldsets = (
+        ('Información', {
+            'fields': ('name', 'description')
+        }),
+        ('Configuración', {
+            'fields': ('question_ids', 'points', 'is_active')
+        }),
+    )
+
+    def questions_summary(self, obj):
+        if not obj.question_ids:
+            return '-'
+        count = len(obj.question_ids)
+        return f"{count} pregunta(s)"
+    questions_summary.short_description = 'Preguntas'
+
+    def points_summary(self, obj):
+        if not obj.points:
+            return '-'
+        parts = [f"+{v} {k}" for k, v in obj.points.items() if v > 0]
+        return ", ".join(parts) if parts else "Sin puntos"
+    points_summary.short_description = 'Puntos'
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        return form
+
+
+@admin.register(RiskThreshold)
+class RiskThresholdAdmin(ModelAdmin):
+    list_display = ('level', 'min_count', 'escalates_to', 'is_active', 'created_at')
+    list_filter = ('level', 'escalates_to', 'is_active')
+    search_fields = ('level',)
+    ordering = ('-created_at', 'min_count')
+
+    fieldsets = (
+        ('Umbral', {
+            'fields': ('level', 'min_count', 'escalates_to', 'is_active')
+        }),
+    )

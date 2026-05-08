@@ -1,6 +1,21 @@
 import { apiClient } from '@/shared/api/client';
 import { Patient, MonitoringForm, ReportHistory } from '../types/patient.model';
 
+export interface AnswerInput {
+  question_id: number;
+  answer: boolean;
+}
+
+export interface RiskEvaluationResult {
+  level: 'LOW' | 'MEDIUM' | 'HIGH';
+  counts: {
+    LOW: number;
+    MEDIUM: number;
+    HIGH: number;
+  };
+  applied_rules: string[];
+}
+
 export interface SubmitReportPayload {
   monitoringId: number;
   generalAnswers: Record<number, 'yes' | 'no'>;
@@ -45,6 +60,11 @@ export const patientsService = {
   
   getMonitoringHistory: async (monitoringId: number): Promise<ReportHistory[]> => {
     const response = await apiClient.get<ReportHistory[]>(`/monitoring/${monitoringId}/history/`);
+    return response.data;
+  },
+
+  evaluateRisk: async (answers: AnswerInput[]): Promise<RiskEvaluationResult> => {
+    const response = await apiClient.post<RiskEvaluationResult>('/patients/evaluate-risk/', { answers });
     return response.data;
   }
 };

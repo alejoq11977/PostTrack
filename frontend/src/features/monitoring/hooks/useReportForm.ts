@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { patientsService } from '@/features/patients/api/patients.service';
 import { MonitoringForm } from '@/features/patients/types/patient.model';
+import { RiskEvaluationResult } from '@/features/patients/api/patients.service';
 
 export const useReportForm = (monitoringId: string | undefined) => {
   const navigate = useNavigate();
@@ -66,8 +67,15 @@ export const useReportForm = (monitoringId: string | undefined) => {
         images,
       });
 
+      const answersForEvaluation = Object.entries(generalAnswers).map(([qId, answer]) => ({
+        question_id: parseInt(qId),
+        answer: answer === 'yes'
+      }));
+
+      const riskResult: RiskEvaluationResult = await patientsService.evaluateRisk(answersForEvaluation);
+
       setIsSuccess(true);
-      setStep(4); //
+      navigate('/form-result', { state: { result: riskResult } });
     } catch (error) {
       console.error("Error al enviar el reporte:", error);
       alert("Ocurrió un error al enviar el reporte. Por favor, revise su conexión e intente nuevamente.");

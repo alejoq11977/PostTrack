@@ -13,6 +13,7 @@ import { ClinicSelector } from '@/features/clinics/components/ClinicSelector';
 import { PolicyPage } from '@/pages/auth/PolicyPage';
 import { AuthorizationPage } from '@/pages/auth/AuthorizationPage';
 import { AlertsPage } from '@/pages/vet/AlertsPage';
+import { FormResultPage } from '@/pages/owner/FormResultPage';
 
 export const router = createBrowserRouter([
   {
@@ -54,6 +55,7 @@ export const router = createBrowserRouter([
           { path: '/report/:monitoringId', element: <ReportFormPage /> },
           { path: '/history/:monitoringId', element: <PetHistoryPage /> },
           { path: '/profile', element: <ProfilePage /> },
+          { path: '/form-result', element: <FormResultPage /> },
         ],
       },
     ],
