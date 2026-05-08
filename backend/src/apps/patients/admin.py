@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib import admin
-from django.utils.html import format_html
+from django.utils.html import format_html, format_html_join
 from unfold.admin import ModelAdmin
 from .models import Patient, RiskRule, RiskThreshold
 from apps.core.services.imgbb import upload_image_to_imgbb
@@ -11,25 +11,15 @@ logger = logging.getLogger(__name__)
 
 
 class RiskRuleForm(forms.ModelForm):
-    selected_questions = forms.MultipleChoiceField(
-        widget=forms.CheckboxSelectMultiple,
+    question_ids_input = forms.CharField(
         required=False,
-        label="Preguntas",
-        help_text="Seleccione las preguntas que deben estar en SÍ para activar esta regla"
+        label="IDs de Preguntas",
+        help_text="Ingrese los IDs separados por coma (ej: 2,3,5). Abajo se muestran las preguntas disponibles con sus IDs.",
+        widget=forms.TextInput(attrs={'placeholder': '2, 3, 5'}),
     )
-    points_low = forms.IntegerField(
-        initial=0, min_value=0, required=False,
-        label="Puntos LOW",
-        help_text="Puntos a sumar si la regla se activa"
-    )
-    points_medium = forms.IntegerField(
-        initial=0, min_value=0, required=False,
-        label="Puntos MEDIUM"
-    )
-    points_high = forms.IntegerField(
-        initial=0, min_value=0, required=False,
-        label="Puntos HIGH"
-    )
+    points_low = forms.IntegerField(initial=0, min_value=0, required=False, label="Puntos LOW")
+    points_medium = forms.IntegerField(initial=0, min_value=0, required=False, label="Puntos MEDIUM")
+    points_high = forms.IntegerField(initial=0, min_value=0, required=False, label="Puntos HIGH")
 
     class Meta:
         model = RiskRule
@@ -38,23 +28,27 @@ class RiskRuleForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         questions = GeneralQuestion.objects.filter(is_active=True).order_by('id')
-        self.fields['selected_questions'].choices = [
-            (str(q.id), q.text[:80] + ('...' if len(q.text) > 80 else ''))
-            for q in questions
-        ]
-        self.fields['selected_questions'].widget.attrs.update({
-            'class': 'grid grid-cols-1 gap-2'
-        })
+        questions_html = format_html_join(
+            '', '<li><strong>ID {}</strong>: {}</li>',
+            [(q.id, q.text[:70] + ('...' if len(q.text) > 70 else '')) for q in questions]
+        )
+        self.fields['question_ids_input'].help_text = format_html(
+            'Ingrese los IDs separados por coma (ej: 2,3,5).<br>'
+            '<strong>Preguntas disponibles:</strong>'
+            '<ul class="list-disc pl-5 mt-2 text-sm">{}</ul>',
+            questions_html
+        )
 
         if self.instance and self.instance.pk:
-            self.fields['selected_questions'].initial = [str(x) for x in (self.instance.question_ids or [])]
+            self.fields['question_ids_input'].initial = ','.join(str(x) for x in (self.instance.question_ids or []))
             self.fields['points_low'].initial = self.instance.points.get('LOW', 0)
             self.fields['points_medium'].initial = self.instance.points.get('MEDIUM', 0)
             self.fields['points_high'].initial = self.instance.points.get('HIGH', 0)
 
     def save(self, commit=True):
         instance = super().save(commit=False)
-        instance.question_ids = [int(x) for x in self.cleaned_data['selected_questions']]
+        ids_str = self.cleaned_data['question_ids_input']
+        instance.question_ids = [int(x.strip()) for x in ids_str.split(',') if x.strip()]
         instance.points = {
             'LOW': self.cleaned_data.get('points_low', 0),
             'MEDIUM': self.cleaned_data.get('points_medium', 0),
@@ -162,7 +156,7 @@ class RiskRuleAdmin(ModelAdmin):
             'fields': ('name', 'description')
         }),
         ('Configuración', {
-            'fields': ('selected_questions', 'points_low', 'points_medium', 'points_high', 'is_active')
+            'fields': ('question_ids_input', 'points_low', 'points_medium', 'points_high', 'is_active')
         }),
     )
 
