@@ -14,6 +14,14 @@ export interface VetReport {
   owner_phone: string | null;
   owner_email: string | null;
   surgery_type: string;
+  monitoring?: {
+    patient?: {
+      name: string;
+      owner?: {
+        full_name: string;
+      };
+    };
+  };
 }
 
 export interface VetOwner {
@@ -71,6 +79,11 @@ export const vetService = {
     return response.data;
   },
 
+  searchOwners: async (search: string): Promise<VetOwner[]> => {
+    const response = await apiClient.get<VetOwner[]>(`/vet/owners/?search=${encodeURIComponent(search)}`);
+    return response.data;
+  },
+
   createOwner: async (data: {
     full_name: string;
     email: string;
@@ -102,6 +115,7 @@ export const vetService = {
     surgery_type: string;
     surgery_date: string;
     report_frequency_hours: number;
+    status?: string;
   }): Promise<VetMonitoring> => {
     const response = await apiClient.post<VetMonitoring>('/vet/monitorings/', data);
     return response.data;
