@@ -3,7 +3,7 @@ import { Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useClinic } from '@/features/clinics/context/ClinicContext';
 import { Logo } from '../common/Logo';
-import { LogOut, Home, Users, AlertCircle, Menu, X, UserPen, Building2 } from 'lucide-react';
+import { LogOut, Home, Users, Menu, X, UserPen, Building2, LayoutDashboard, FileText, Stethoscope } from 'lucide-react';
 import { ChangeClinicModal } from '../common/ChangeClinicModal';
 
 export const MainLayout = () => {
@@ -36,55 +36,72 @@ export const MainLayout = () => {
   const navLinks = isVet ? (
     <>
       <Link
-        to="/"
+        to="/vet/dashboard"
         onClick={() => setMenuOpen(false)}
         className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-colors ${
-          isActive('/') ? 'bg-brand-50 text-brand-600' : 'text-slate-500 hover:bg-slate-50'
+          isActive('/vet/dashboard') ? 'bg-brand-50 text-brand-600' : 'text-slate-500 hover:bg-slate-50'
         }`}
       >
-        <Users size={20} /> Mis Pacientes
+        <LayoutDashboard size={20} /> Dashboard
       </Link>
       <Link
-        to="/alerts"
+        to="/vet/reports"
         onClick={() => setMenuOpen(false)}
         className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-colors ${
-          isActive('/alerts') ? 'bg-brand-50 text-brand-600' : 'text-slate-500 hover:bg-slate-50'
+          isActive('/vet/reports') || location.pathname.startsWith('/vet/reports/') ? 'bg-brand-50 text-brand-600' : 'text-slate-500 hover:bg-slate-50'
         }`}
       >
-        <AlertCircle size={20} /> Alertas (Mora)
+        <FileText size={20} /> Reportes
       </Link>
-
-      <Link 
-      to ='/profile'
-      onClick= {() => setMenuOpen(false)}
-      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-colors ${
+      <Link
+        to="/vet/users"
+        onClick={() => setMenuOpen(false)}
+        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-colors ${
+          isActive('/vet/users') ? 'bg-brand-50 text-brand-600' : 'text-slate-500 hover:bg-slate-50'
+        }`}
+      >
+        <Users size={20} /> Propietarios
+      </Link>
+      <Link
+        to="/vet/monitorings"
+        onClick={() => setMenuOpen(false)}
+        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-colors ${
+          isActive('/vet/monitorings') ? 'bg-brand-50 text-brand-600' : 'text-slate-500 hover:bg-slate-50'
+        }`}
+      >
+        <Stethoscope size={20} /> Seguimientos
+      </Link>
+      <Link
+        to="/profile"
+        onClick={() => setMenuOpen(false)}
+        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-colors ${
           isActive('/profile') ? 'bg-brand-50 text-brand-600' : 'text-slate-500 hover:bg-slate-50'
-      }`}
+        }`}
       >
         <UserPen size={20} /> Mi Perfil
       </Link>
     </>
   ) : (
     <>
-    <Link
-      to="/"
-      onClick={() => setMenuOpen(false)}
-      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-colors ${
-        isActive('/') ? 'bg-brand-50 text-brand-600' : 'text-slate-500 hover:bg-slate-50'
-      }`}
-    >
-      <Home size={20} /> Mis Mascotas
-    </Link>
-    
-    <Link 
-    to ='/profile'
-    onClick= {() => setMenuOpen(false)}
-    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-colors ${
-        isActive('/profile') ? 'bg-brand-50 text-brand-600' : 'text-slate-500 hover:bg-slate-50'
-    }`}
-    >
-      <UserPen size={20} /> Mi Perfil
-    </Link>
+      <Link
+        to="/"
+        onClick={() => setMenuOpen(false)}
+        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-colors ${
+          isActive('/') && !location.pathname.startsWith('/vet') ? 'bg-brand-50 text-brand-600' : 'text-slate-500 hover:bg-slate-50'
+        }`}
+      >
+        <Home size={20} /> Mis Mascotas
+      </Link>
+
+      <Link
+        to='/profile'
+        onClick= {() => setMenuOpen(false)}
+        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-colors ${
+          isActive('/profile') ? 'bg-brand-50 text-brand-600' : 'text-slate-500 hover:bg-slate-50'
+        }`}
+      >
+        <UserPen size={20} /> Mi Perfil
+      </Link>
 
     </>
   );

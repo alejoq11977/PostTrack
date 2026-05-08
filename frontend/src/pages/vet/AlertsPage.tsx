@@ -1,4 +1,4 @@
-import { Building2, AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 
 export const AlertsPage = () => {
   return (

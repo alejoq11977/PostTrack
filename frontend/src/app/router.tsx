@@ -14,6 +14,10 @@ import { PolicyPage } from '@/pages/auth/PolicyPage';
 import { AuthorizationPage } from '@/pages/auth/AuthorizationPage';
 import { AlertsPage } from '@/pages/vet/AlertsPage';
 import { FormResultPage } from '@/pages/owner/FormResultPage';
+import { VetDashboardPage } from '@/pages/vet/VetDashboardPage';
+import { VetReportsPage } from '@/pages/vet/VetReportsPage';
+import { VetUsersPage } from '@/pages/vet/VetUsersPage';
+import { VetMonitoringsPage } from '@/pages/vet/VetMonitoringsPage';
 
 export const router = createBrowserRouter([
   {
@@ -56,6 +60,10 @@ export const router = createBrowserRouter([
           { path: '/history/:monitoringId', element: <PetHistoryPage /> },
           { path: '/profile', element: <ProfilePage /> },
           { path: '/form-result', element: <FormResultPage /> },
+          { path: '/vet/dashboard', element: <VetDashboardPage /> },
+          { path: '/vet/reports', element: <VetReportsPage /> },
+          { path: '/vet/users', element: <VetUsersPage /> },
+          { path: '/vet/monitorings', element: <VetMonitoringsPage /> },
         ],
       },
     ],
