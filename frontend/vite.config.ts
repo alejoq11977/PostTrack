@@ -20,8 +20,12 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8000',
         changeOrigin: true,
-        headers: {
-          'Accept': 'application/json, text/event-stream',
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            if (proxyReq.path.includes('/alerts/stream')) {
+              proxyReq.setHeader('Accept', 'text/event-stream');
+            }
+          });
         },
       },
     },
