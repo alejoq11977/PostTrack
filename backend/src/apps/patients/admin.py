@@ -10,6 +10,61 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+class RiskRuleForm(forms.ModelForm):
+    selected_questions = forms.MultipleChoiceField(
+        widget=forms.CheckboxSelectMultiple,
+        required=False,
+        label="Preguntas",
+        help_text="Seleccione las preguntas que deben estar en SÍ para activar esta regla"
+    )
+    points_low = forms.IntegerField(
+        initial=0, min_value=0, required=False,
+        label="Puntos LOW",
+        help_text="Puntos a sumar si la regla se activa"
+    )
+    points_medium = forms.IntegerField(
+        initial=0, min_value=0, required=False,
+        label="Puntos MEDIUM"
+    )
+    points_high = forms.IntegerField(
+        initial=0, min_value=0, required=False,
+        label="Puntos HIGH"
+    )
+
+    class Meta:
+        model = RiskRule
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        questions = GeneralQuestion.objects.filter(is_active=True).order_by('id')
+        self.fields['selected_questions'].choices = [
+            (q.id, q.text[:80] + ('...' if len(q.text) > 80 else ''))
+            for q in questions
+        ]
+        self.fields['selected_questions'].widget.attrs.update({
+            'class': 'grid grid-cols-1 gap-2'
+        })
+
+        if self.instance and self.instance.pk:
+            self.fields['selected_questions'].initial = self.instance.question_ids or []
+            self.fields['points_low'].initial = self.instance.points.get('LOW', 0)
+            self.fields['points_medium'].initial = self.instance.points.get('MEDIUM', 0)
+            self.fields['points_high'].initial = self.instance.points.get('HIGH', 0)
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        instance.question_ids = [int(x) for x in self.cleaned_data['selected_questions']]
+        instance.points = {
+            'LOW': self.cleaned_data.get('points_low', 0),
+            'MEDIUM': self.cleaned_data.get('points_medium', 0),
+            'HIGH': self.cleaned_data.get('points_high', 0),
+        }
+        if commit:
+            instance.save()
+        return instance
+
+
 class PatientAdminForm(forms.ModelForm):
     image_upload = forms.ImageField(
         required=False,
@@ -96,6 +151,7 @@ class PatientAdmin(ModelAdmin):
 
 @admin.register(RiskRule)
 class RiskRuleAdmin(ModelAdmin):
+    form = RiskRuleForm
     list_display = ('name', 'questions_summary', 'points_summary', 'is_active', 'created_at')
     list_filter = ('is_active', 'created_at')
     search_fields = ('name', 'description')
@@ -106,7 +162,7 @@ class RiskRuleAdmin(ModelAdmin):
             'fields': ('name', 'description')
         }),
         ('Configuración', {
-            'fields': ('question_ids', 'points', 'is_active')
+            'fields': ('selected_questions', 'points_low', 'points_medium', 'points_high', 'is_active')
         }),
     )
 
@@ -124,9 +180,8 @@ class RiskRuleAdmin(ModelAdmin):
         return ", ".join(parts) if parts else "Sin puntos"
     points_summary.short_description = 'Puntos'
 
-    def get_form(self, request, obj=None, **kwargs):
-        form = super().get_form(request, obj, **kwargs)
-        return form
+    def get_readonly_fields(self, request, obj=None):
+        return ['created_at', 'updated_at']
 
 
 @admin.register(RiskThreshold)
