@@ -34,11 +34,23 @@ def evaluate_risk(answers: List[AnswerInput]) -> RiskEvaluationResult:
             applied_rules=[]
         )
 
+    valid_answers = [
+        a for a in answers
+        if isinstance(a.question_id, int) and a.question_id > 0
+    ]
+
+    if not valid_answers:
+        return RiskEvaluationResult(
+            level=RiskLevel.LOW,
+            counts={RiskLevel.LOW: 0, RiskLevel.MEDIUM: 0, RiskLevel.HIGH: 0},
+            applied_rules=[]
+        )
+
     from apps.patients.models.question import RiskRule, RiskThreshold
     from apps.monitoring.models.questions import GeneralQuestion
 
-    question_ids = [a.question_id for a in answers]
-    questions = GeneralQuestion.objects.filter(id__in=question_ids)
+    question_ids = [a.question_id for a in valid_answers]
+    questions = GeneralQuestion.objects.filter(id__in=question_ids, is_active=True)
     question_risk_map = {q.id: q.associated_risk for q in questions}
 
     counts = {RiskLevel.LOW: 0, RiskLevel.MEDIUM: 0, RiskLevel.HIGH: 0}
