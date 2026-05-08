@@ -1,5 +1,23 @@
 import { apiClient } from '@/shared/api/client';
 
+export interface VetAnswer {
+  id: number;
+  question_text: string;
+  value: string;
+}
+
+export interface VetQuestion {
+  id: number;
+  text: string;
+  instruction_text: string | null;
+}
+
+export interface VetEvidence {
+  id: number;
+  image_url: string;
+  created_at: string;
+}
+
 export interface VetReport {
   id: number;
   submitted_at: string;
@@ -14,6 +32,11 @@ export interface VetReport {
   owner_phone: string | null;
   owner_email: string | null;
   surgery_type: string;
+  general_questions: VetQuestion[];
+  custom_questions: VetQuestion[];
+  answers: VetAnswer[];
+  general_notes: string;
+  evidences: VetEvidence[];
   monitoring?: {
     patient?: {
       name: string;
@@ -57,6 +80,22 @@ export interface VetMonitoring {
   active_reports: number;
 }
 
+export interface MissingReport {
+  id: number;
+  patient_name: string;
+  patient_photo: string | null;
+  owner_name: string;
+  owner_phone: string | null;
+  owner_email: string | null;
+  surgery_type: string;
+  surgery_date: string;
+  day_number: number;
+  report_frequency_hours: number;
+  last_report_at: string | null;
+  expected_at: string;
+  minutes_overdue: number;
+}
+
 export const vetService = {
   getReports: async (filter?: 'pending' | 'reviewed' | 'all'): Promise<VetReport[]> => {
     const params = filter ? `?filter=${filter}` : '';
@@ -73,6 +112,10 @@ export const vetService = {
     await apiClient.patch(`/vet/reports/${id}/validate/`, data);
   },
 
+  markReportReviewed: async (id: number): Promise<void> => {
+    await apiClient.patch(`/vet/reports/${id}/mark-reviewed/`);
+  },
+
   getOwners: async (search?: string): Promise<VetOwner[]> => {
     const params = search ? `?search=${encodeURIComponent(search)}` : '';
     const response = await apiClient.get<VetOwner[]>(`/vet/owners/${params}`);
@@ -87,6 +130,8 @@ export const vetService = {
   createOwner: async (data: {
     full_name: string;
     email: string;
+    password: string;
+    confirm_password: string;
     identification_number?: string;
     phone_number?: string;
     address?: string;
@@ -118,6 +163,16 @@ export const vetService = {
     status?: string;
   }): Promise<VetMonitoring> => {
     const response = await apiClient.post<VetMonitoring>('/vet/monitorings/', data);
+    return response.data;
+  },
+
+  getMissingReports: async (): Promise<MissingReport[]> => {
+    const response = await apiClient.get<{ count: number; results: MissingReport[] }>('/vet/reports/missing/');
+    return response.data.results;
+  },
+
+  getStats: async (): Promise<{ pending: number; reviewed_today: number; total_active: number; high_risk: number }> => {
+    const response = await apiClient.get('/vet/reports/stats/');
     return response.data;
   },
 };

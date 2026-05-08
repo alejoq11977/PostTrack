@@ -4,6 +4,11 @@ from apps.patients.models import Patient
 from apps.monitoring.models import SurgicalMonitoring, Report
 
 
+class AnswerSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    question_text = serializers.CharField()
+    value = serializers.CharField()
+
 class VetReportSerializer(serializers.ModelSerializer):
     patient_name = serializers.CharField(source='monitoring.patient.name', read_only=True)
     patient_photo = serializers.URLField(source='monitoring.patient.photo_url', read_only=True)
@@ -28,6 +33,75 @@ class VetReportSerializer(serializers.ModelSerializer):
             return delta.days + 1
         return 1
 
+class VetReportDetailSerializer(serializers.ModelSerializer):
+    patient_name = serializers.CharField(source='monitoring.patient.name', read_only=True)
+    patient_photo = serializers.URLField(source='monitoring.patient.photo_url', read_only=True)
+    owner_name = serializers.CharField(source='monitoring.patient.owner.full_name', read_only=True)
+    owner_phone = serializers.CharField(source='monitoring.patient.owner.phone_number', read_only=True)
+    owner_email = serializers.EmailField(source='monitoring.patient.owner.email', read_only=True)
+    surgery_type = serializers.CharField(source='monitoring.surgery_type', read_only=True)
+    day_number = serializers.SerializerMethodField()
+    general_questions = serializers.SerializerMethodField()
+    custom_questions = serializers.SerializerMethodField()
+    answers = serializers.SerializerMethodField()
+    general_notes = serializers.SerializerMethodField()
+    evidences = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Report
+        fields = [
+            'id', 'submitted_at', 'calculated_risk', 'validated_risk',
+            'review_status', 'medical_notes', 'day_number',
+            'patient_name', 'patient_photo', 'owner_name', 'owner_phone', 'owner_email',
+            'surgery_type', 'general_questions', 'custom_questions', 'answers', 'general_notes',
+            'evidences'
+        ]
+
+    def get_day_number(self, obj):
+        if obj.monitoring and obj.monitoring.surgery_date:
+            delta = obj.submitted_at.replace(tzinfo=obj.monitoring.surgery_date.tzinfo) - obj.monitoring.surgery_date
+            return delta.days + 1
+        return 1
+
+    def get_general_questions(self, obj):
+        from apps.monitoring.models import GeneralQuestion
+        questions = GeneralQuestion.objects.filter(is_active=True)
+        return [{'id': q.id, 'text': q.text, 'instruction_text': q.instruction_text} for q in questions]
+
+    def get_custom_questions(self, obj):
+        if obj.monitoring:
+            return [
+                {'id': q.id, 'text': q.text, 'instruction_text': q.instruction_text}
+                for q in obj.monitoring.custom_questions.filter(is_active=True)
+            ]
+        return []
+
+    def get_answers(self, obj):
+        answers = obj.answers.select_related('general_question', 'custom_question').all()
+        result = []
+        for a in answers:
+            question_text = None
+            if a.general_question:
+                question_text = a.general_question.text
+            elif a.custom_question:
+                question_text = a.custom_question.text
+            result.append({
+                'id': a.id,
+                'question_text': question_text or 'Pregunta desconocida',
+                'value': a.value
+            })
+        return result
+
+    def get_general_notes(self, obj):
+        return obj.medical_notes or ''
+
+    def get_evidences(self, obj):
+        evidences = obj.evidences.all()
+        return [
+            {'id': e.id, 'image_url': e.image_url, 'created_at': e.created_at}
+            for e in evidences
+        ]
+
 
 class VetOwnerSerializer(serializers.ModelSerializer):
     patients_count = serializers.SerializerMethodField()
@@ -41,6 +115,32 @@ class VetOwnerSerializer(serializers.ModelSerializer):
 
     def get_patients_count(self, obj):
         return obj.patients.filter(is_active=True).count()
+
+
+class VetOwnerCreateSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=True)
+    confirm_password = serializers.CharField(write_only=True, required=False)
+
+    class Meta:
+        model = User
+        fields = [
+            'full_name', 'email', 'password', 'confirm_password',
+            'identification_number', 'phone_number', 'address'
+        ]
+
+    def validate(self, attrs):
+        if 'confirm_password' in attrs and attrs['password'] != attrs['confirm_password']:
+            raise serializers.ValidationError({'confirm_password': 'Las contraseñas no coinciden'})
+        return attrs
+
+    def create(self, validated_data):
+        validated_data.pop('confirm_password', None)
+        password = validated_data.pop('password')
+        user = User(**validated_data)
+        user.set_password(password)
+        user.role = 'OWNER'
+        user.save()
+        return user
 
 
 class VetPatientSerializer(serializers.ModelSerializer):

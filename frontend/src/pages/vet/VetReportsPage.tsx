@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Search, ChevronRight, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
+import { FileText, Search, ChevronRight, CheckCircle, Clock, AlertTriangle, Wifi, WifiOff } from 'lucide-react';
 import { vetService, VetReport } from '@/features/vet/api/vet.service';
+import { auth } from '@/app/providers/firebase';
 
 const RISK_STYLES = {
   HIGH: { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-600', badge: 'bg-red-100 text-red-700' },
@@ -34,32 +35,110 @@ function formatTimeAgo(dateString: string): string {
   return 'recién';
 }
 
+const getApiBaseUrl = () => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl) return envUrl.replace(/\/api$/, '');
+  if (import.meta.env.DEV) return 'http://localhost:8000';
+  return window.location.origin;
+};
+
 export const VetReportsPage = () => {
   const navigate = useNavigate();
   const [reports, setReports] = useState<VetReport[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'pending' | 'reviewed'>('all');
   const [search, setSearch] = useState('');
+  const [isConnected, setIsConnected] = useState(false);
+  const eventSourceRef = useRef<EventSource | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const fetchReports = useCallback(async () => {
+    try {
+      const filterParam = filter === 'all' ? undefined : filter;
+      const data = await vetService.getReports(filterParam);
+      setReports(data);
+    } catch (err) {
+      console.error('Error fetching reports:', err);
+    }
+  }, [filter]);
+
+  const connect = useCallback(async () => {
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
+
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) return;
+
+      const token = await currentUser.getIdToken();
+      const baseUrl = getApiBaseUrl();
+      const url = `${baseUrl}/api/vet/alerts/stream/?token=${encodeURIComponent(token)}`;
+
+      const eventSource = new EventSource(url);
+
+      eventSource.onopen = () => {
+        setIsConnected(true);
+      };
+
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'reports_update' && data.reports) {
+            setReports(prev => {
+              const merged = [...prev];
+              for (const report of data.reports) {
+                const index = merged.findIndex(r => r.id === report.id);
+                if (index >= 0) {
+                  merged[index] = report;
+                } else {
+                  merged.push(report);
+                }
+              }
+              return merged;
+            });
+          }
+        } catch (err) {
+          console.error('[SSE] Error parsing message:', err);
+        }
+      };
+
+      eventSource.onerror = () => {
+        setIsConnected(false);
+        eventSource.close();
+        eventSourceRef.current = null;
+        reconnectTimeoutRef.current = setTimeout(connect, 5000);
+      };
+
+      eventSourceRef.current = eventSource;
+    } catch (err) {
+      console.error('[SSE] Connection error:', err);
+    }
+  }, []);
 
   useEffect(() => {
     document.title = 'Reportes - PostTrack';
   }, []);
 
   useEffect(() => {
-    const fetchReports = async () => {
-      setIsLoading(true);
-      try {
-        const filterParam = filter === 'all' ? undefined : filter;
-        const data = await vetService.getReports(filterParam);
-        setReports(data);
-      } catch (err) {
-        console.error('Error fetching reports:', err);
-      } finally {
-        setIsLoading(false);
+    setIsLoading(true);
+    fetchReports().finally(() => setIsLoading(false));
+  }, [fetchReports]);
+
+  useEffect(() => {
+    connect();
+
+    return () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
       }
     };
-    fetchReports();
-  }, [filter]);
+  }, [connect]);
 
   const filteredReports = search
     ? reports.filter(r =>
@@ -79,13 +158,28 @@ export const VetReportsPage = () => {
 
   return (
     <div className="animate-in fade-in duration-500">
-      <div className="mb-6">
-        <h1 className="text-[24px] font-display font-semibold text-slate-800 tracking-tight">
-          Reportes
-        </h1>
-        <p className="text-slate-400 text-[13px] mt-1">
-          Revisa y valida los reportes de seguimiento
-        </p>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-[24px] font-display font-semibold text-slate-800 tracking-tight">
+            Reportes
+          </h1>
+          <p className="text-slate-400 text-[13px] mt-1">
+            Revisa y valida los reportes de seguimiento
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {isConnected ? (
+            <span className="flex items-center gap-1 text-xs text-emerald-600">
+              <Wifi size={14} />
+              Tiempo real
+            </span>
+          ) : (
+            <span className="flex items-center gap-1 text-xs text-slate-400">
+              <WifiOff size={14} />
+              Actualizando...
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Filters and Search */}

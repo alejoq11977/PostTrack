@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Search, Stethoscope, Clock, AlertTriangle, ChevronRight } from 'lucide-react';
+import { Plus, Search, Stethoscope, Clock, AlertTriangle, ChevronRight, Dog } from 'lucide-react';
 import { vetService, VetMonitoring } from '@/features/vet/api/vet.service';
 
 type SearchMode = 'owner' | 'patient';
@@ -26,6 +26,9 @@ interface SearchResult {
   name: string;
   secondary?: string;
   phone?: string | null;
+  photo_url?: string | null;
+  species?: string;
+  breed?: string;
 }
 
 function MonitoringCard({ monitoring }: { monitoring: VetMonitoring }) {
@@ -261,12 +264,15 @@ function CreateMonitoringModal({
         })));
       } else {
         const patients = await vetService.searchPatients(query);
-        setSearchResults(patients.map((p: { id: number; name: string; owner_name: string; owner_phone: string | null }) => ({
+        setSearchResults(patients.map((p: { id: number; name: string; owner_name: string; owner_phone: string | null; photo_url: string | null; species: string; breed: string }) => ({
           id: p.id,
           type: 'patient' as const,
           name: p.name,
           secondary: p.owner_name,
           phone: p.owner_phone,
+          photo_url: p.photo_url,
+          species: p.species,
+          breed: p.breed,
         })));
       }
     } catch (error) {
@@ -344,9 +350,41 @@ function CreateMonitoringModal({
                   onClick={() => handleSelectPatient(result)}
                   className="w-full p-3 bg-slate-50 hover:bg-blue-50 rounded-lg text-left transition-colors"
                 >
-                  <p className="font-medium text-slate-800">{result.name}</p>
-                  {result.secondary && (
-                    <p className="text-xs text-slate-500">{result.secondary}</p>
+                  {result.type === 'patient' && result.photo_url ? (
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={result.photo_url}
+                        alt={result.name}
+                        className="w-10 h-10 rounded-full object-cover"
+                      />
+                      <div>
+                        <p className="font-medium text-slate-800">{result.name}</p>
+                        <p className="text-xs text-slate-500">{result.species} · {result.breed}</p>
+                        {result.secondary && (
+                          <p className="text-xs text-slate-400 mt-0.5">Dueño: {result.secondary}</p>
+                        )}
+                      </div>
+                    </div>
+                  ) : result.type === 'patient' ? (
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                        <Dog size={20} className="text-blue-500" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-slate-800">{result.name}</p>
+                        <p className="text-xs text-slate-500">{result.species || 'Mascota'} · {result.breed || ''}</p>
+                        {result.secondary && (
+                          <p className="text-xs text-slate-400 mt-0.5">Dueño: {result.secondary}</p>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="font-medium text-slate-800">{result.name}</p>
+                      {result.secondary && (
+                        <p className="text-xs text-slate-500">{result.secondary}</p>
+                      )}
+                    </>
                   )}
                 </button>
               ))}

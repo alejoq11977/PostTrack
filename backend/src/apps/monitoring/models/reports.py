@@ -18,6 +18,7 @@ class Report(AuditableModel):
     calculated_risk = models.CharField(max_length=10, choices=RiskLevel.choices, blank=True, null=True)
     validated_risk = models.CharField(max_length=10, choices=RiskLevel.choices, blank=True, null=True)
     review_status = models.CharField(max_length=15, choices=ReportStatus.choices, default=ReportStatus.PENDING)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
     processing_status = models.CharField(max_length=20, choices=ProcessingStatus.choices, default=ProcessingStatus.COMPLETED)
     medical_notes = models.TextField(blank=True, null=True)
 

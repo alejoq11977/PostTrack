@@ -20,6 +20,8 @@ function getPetEmoji(species: string): string {
 interface OwnerFormData {
   full_name: string;
   email: string;
+  password: string;
+  confirm_password: string;
   identification_number: string;
   phone_number: string;
   address: string;
@@ -36,6 +38,8 @@ interface PetFormData {
 const initialOwnerForm: OwnerFormData = {
   full_name: '',
   email: '',
+  password: '',
+  confirm_password: '',
   identification_number: '',
   phone_number: '',
   address: '',
@@ -115,11 +119,24 @@ export const VetUsersPage = () => {
   };
 
   const handleSave = async () => {
-    if (!ownerForm.full_name || !ownerForm.email) return;
+    if (!ownerForm.full_name || !ownerForm.email || !ownerForm.password) return;
+
+    if (ownerForm.password !== ownerForm.confirm_password) {
+      alert('Las contraseñas no coinciden');
+      return;
+    }
 
     setIsSaving(true);
     try {
-      const owner = await vetService.createOwner(ownerForm);
+      const owner = await vetService.createOwner({
+        full_name: ownerForm.full_name,
+        email: ownerForm.email,
+        password: ownerForm.password,
+        confirm_password: ownerForm.confirm_password,
+        identification_number: ownerForm.identification_number,
+        phone_number: ownerForm.phone_number,
+        address: ownerForm.address,
+      });
       if (petForm.name && petForm.species) {
         console.log('Pet would be created for owner:', owner.id, petForm);
       }
@@ -315,6 +332,28 @@ export const VetUsersPage = () => {
                 </div>
 
                 <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Contraseña *</label>
+                  <input
+                    type="password"
+                    value={ownerForm.password}
+                    onChange={(e) => setOwnerForm({ ...ownerForm, password: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    placeholder="Mínimo 8 caracteres"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Confirmar contraseña *</label>
+                  <input
+                    type="password"
+                    value={ownerForm.confirm_password}
+                    onChange={(e) => setOwnerForm({ ...ownerForm, confirm_password: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    placeholder="Repite la contraseña"
+                  />
+                </div>
+
+                <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Número de identificación</label>
                   <input
                     type="text"
@@ -425,7 +464,7 @@ export const VetUsersPage = () => {
               </button>
               <button
                 onClick={handleSave}
-                disabled={!ownerForm.full_name || !ownerForm.email || isSaving}
+                disabled={!ownerForm.full_name || !ownerForm.email || !ownerForm.password || isSaving}
                 className="flex-1 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 transition-colors"
               >
                 {isSaving ? 'Guardando...' : 'Guardar'}
