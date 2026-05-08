@@ -1,8 +1,9 @@
 from apps.monitoring.models import Report, Answer
+from apps.patients.services.risk_evaluation import evaluate_risk, AnswerInput
 
 def get_report_history_for_monitoring(monitoring_id: int, owner):
     """
-    Obtiene todos los reportes de una cirugía específica, 
+    Obtiene todos los reportes de una cirugía específica,
     validando que el dueño sea el correcto.
     """
     return Report.objects.filter(
@@ -14,14 +15,26 @@ def get_report_history_for_monitoring(monitoring_id: int, owner):
 def save_report_with_answers(monitoring, medical_notes, status, general_answers: dict, custom_answers: dict) -> Report:
     """
     Guarda el reporte y sus respuestas en la base de datos de forma masiva.
+    Calcula automáticamente el nivel de riesgo.
     """
+    answers_for_risk = []
+
+    for question_id, value in general_answers.items():
+        answer_value = value in ('yes', True, 'true')
+        answers_for_risk.append(
+            AnswerInput(question_id=int(question_id), answer=answer_value)
+        )
+
+    risk_result = evaluate_risk(answers_for_risk)
+
     report = Report.objects.create(
         monitoring=monitoring,
         medical_notes=medical_notes,
-        processing_status=status
+        processing_status=status,
+        calculated_risk=risk_result.level
     )
 
-    answers_to_create =[]
+    answers_to_create = []
 
     for question_id, value in general_answers.items():
         answers_to_create.append(
