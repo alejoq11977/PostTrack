@@ -105,16 +105,32 @@ class VetReportDetailSerializer(serializers.ModelSerializer):
 
 class VetOwnerSerializer(serializers.ModelSerializer):
     patients_count = serializers.SerializerMethodField()
+    patients = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
             'id', 'full_name', 'email', 'identification_number',
-            'phone_number', 'address', 'patients_count', 'created_at'
+            'phone_number', 'address', 'patients_count', 'patients', 'created_at'
         ]
 
     def get_patients_count(self, obj):
         return obj.patients.filter(is_active=True).count()
+
+    def get_patients(self, obj):
+        patients = obj.patients.filter(is_active=True)
+        return [
+            {
+                'id': p.id,
+                'name': p.name,
+                'species': p.species,
+                'breed': p.breed,
+                'birth_date': p.birth_date.isoformat() if p.birth_date else None,
+                'current_weight': p.current_weight,
+                'photo_url': p.photo_url,
+            }
+            for p in patients
+        ]
 
 
 class VetOwnerCreateSerializer(serializers.ModelSerializer):
@@ -144,6 +160,7 @@ class VetOwnerCreateSerializer(serializers.ModelSerializer):
 
 
 class VetPatientSerializer(serializers.ModelSerializer):
+    owner_id = serializers.IntegerField(source='owner.id', read_only=True)
     owner_name = serializers.CharField(source='owner.full_name', read_only=True)
     owner_phone = serializers.CharField(source='owner.phone_number', read_only=True)
     owner_email = serializers.EmailField(source='owner.email', read_only=True)
@@ -152,7 +169,7 @@ class VetPatientSerializer(serializers.ModelSerializer):
         model = Patient
         fields = [
             'id', 'name', 'species', 'breed', 'birth_date', 'current_weight', 'photo_url',
-            'owner_name', 'owner_phone', 'owner_email'
+            'owner_id', 'owner_name', 'owner_phone', 'owner_email'
         ]
 
 

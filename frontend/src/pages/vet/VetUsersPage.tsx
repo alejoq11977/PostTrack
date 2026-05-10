@@ -133,12 +133,26 @@ export const VetUsersPage = () => {
         phone_number: owner.phone_number || '',
         address: owner.address || '',
       });
+      if (owner.patients && owner.patients.length > 0) {
+        setPets(owner.patients.map(p => ({
+          id: crypto.randomUUID(),
+          name: p.name,
+          species: p.species,
+          breed: p.breed,
+          birth_date: p.birth_date || '',
+          current_weight: p.current_weight?.toString() || '',
+          photo_url: p.photo_url || '',
+          photo_file: null,
+        })));
+      } else {
+        setPets([]);
+      }
     } else {
       setIsEditing(false);
       setEditingOwnerId(null);
       setOwnerForm(initialOwnerForm);
+      setPets([]);
     }
-    setPets([]);
     setShowModal(true);
   };
 
@@ -321,22 +335,35 @@ export const VetUsersPage = () => {
           {patients.map(patient => (
             <div
               key={patient.id}
-              className="bg-white rounded-2xl border border-slate-200 p-5 cursor-pointer hover:shadow-lg hover:border-blue-200 transition-all group"
+              onClick={() => {
+                const owner = owners.find(o => o.id === patient.owner_id);
+                if (owner) handleOpenModal(owner);
+              }}
+              className="bg-white rounded-2xl border border-slate-200 overflow-hidden cursor-pointer hover:shadow-xl hover:border-emerald-300 transition-all group"
             >
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center text-3xl overflow-hidden shadow-inner">
-                  {patient.photo_url ? (
-                    <img src={patient.photo_url} alt={patient.name} className="w-full h-full object-cover rounded-2xl" />
-                  ) : (
-                    getPetEmoji(patient.species)
-                  )}
+              <div className="relative h-40 bg-gradient-to-br from-emerald-100 to-teal-50">
+                {patient.photo_url ? (
+                  <img src={patient.photo_url} alt={patient.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-7xl">
+                    {getPetEmoji(patient.species)}
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+              </div>
+              <div className="p-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="font-semibold text-slate-800 text-xl">{patient.name}</h3>
+                    <p className="text-sm text-emerald-600 font-medium">{patient.species} · {patient.breed}</p>
+                  </div>
+                  <ChevronRight size={20} className="text-slate-300 group-hover:text-emerald-500 group-hover:translate-x-1 transition-all mt-1" />
                 </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-slate-800 text-lg">{patient.name}</h3>
-                  <p className="text-sm text-slate-500">{patient.species} · {patient.breed}</p>
-                  <p className="text-xs text-slate-400 mt-1">Dueño: {patient.owner_name}</p>
+                <div className="mt-3 pt-3 border-t border-slate-100">
+                  <p className="text-xs text-slate-400">
+                    <span className="font-medium text-slate-600">Dueño:</span> {patient.owner_name}
+                  </p>
                 </div>
-                <ChevronRight size={20} className="text-slate-300 group-hover:text-brand-500 group-hover:translate-x-1 transition-all" />
               </div>
             </div>
           ))}

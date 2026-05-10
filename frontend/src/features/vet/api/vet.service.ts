@@ -55,6 +55,7 @@ export interface VetOwner {
   phone_number: string | null;
   address: string | null;
   patients_count: number;
+  patients: VetPatient[];
   created_at: string;
 }
 
@@ -63,10 +64,13 @@ export interface VetPatient {
   name: string;
   species: string;
   breed: string;
+  birth_date: string;
+  current_weight: number;
   photo_url: string | null;
-  owner_name: string;
-  owner_phone: string | null;
-  owner_email: string | null;
+  owner_id?: number;
+  owner_name?: string;
+  owner_phone?: string | null;
+  owner_email?: string | null;
 }
 
 export interface VetMonitoring {
