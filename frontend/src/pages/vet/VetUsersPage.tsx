@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { Users, Search, Plus, X, ChevronRight, Dog, Edit2, Upload, Trash2 } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Users, Search, Plus, X, ChevronRight, Dog, Edit2, Upload, Trash2, Camera, UserPlus } from 'lucide-react';
 import { vetService, VetOwner, VetPatient } from '@/features/vet/api/vet.service';
 
 const PET_ICONS: Record<string, string> = {
@@ -246,8 +246,10 @@ export const VetUsersPage = () => {
       setShowModal(false);
       const ownersData = await vetService.getOwners();
       setOwners(ownersData);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error saving owner:', err);
+      const errorMsg = err?.response?.data?.email?.[0] || err?.response?.data?.detail || 'Error al guardar';
+      alert(errorMsg);
     } finally {
       setIsSaving(false);
     }
@@ -265,10 +267,10 @@ export const VetUsersPage = () => {
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        <div className="flex gap-2 p-1 bg-slate-100 rounded-lg">
+        <div className="flex gap-2 p-1 bg-slate-100 rounded-xl">
           <button
             onClick={() => { setSearchType('owner'); setSearch(''); }}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
               searchType === 'owner'
                 ? 'bg-white text-slate-800 shadow-sm'
                 : 'text-slate-500 hover:text-slate-700'
@@ -278,7 +280,7 @@ export const VetUsersPage = () => {
           </button>
           <button
             onClick={() => { setSearchType('patient'); setSearch(''); }}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
               searchType === 'patient'
                 ? 'bg-white text-slate-800 shadow-sm'
                 : 'text-slate-500 hover:text-slate-700'
@@ -295,15 +297,15 @@ export const VetUsersPage = () => {
             placeholder={searchType === 'owner' ? "Buscar por nombre, email, cédula..." : "Buscar por nombre de mascota..."}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+            className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-white"
           />
         </div>
 
         <button
-          onClick={handleOpenModal}
-          className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors"
+          onClick={() => handleOpenModal()}
+          className="flex items-center gap-2 px-5 py-2.5 bg-brand-600 text-white rounded-xl hover:bg-brand-700 transition-all shadow-lg shadow-brand-600/20 hover:shadow-brand-600/30"
         >
-          <Plus size={18} />
+          <UserPlus size={18} />
           Crear usuario
         </button>
       </div>
@@ -311,7 +313,7 @@ export const VetUsersPage = () => {
       {isLoading ? (
         <div className="space-y-4">
           {[1, 2, 3].map(i => (
-            <div key={i} className="animate-pulse bg-white rounded-xl border border-slate-200 h-20" />
+            <div key={i} className="animate-pulse bg-white rounded-2xl border border-slate-200 h-24" />
           ))}
         </div>
       ) : searchType === 'patient' && patients.length > 0 ? (
@@ -319,46 +321,49 @@ export const VetUsersPage = () => {
           {patients.map(patient => (
             <div
               key={patient.id}
-              className="bg-white rounded-xl border border-slate-200 p-4 cursor-pointer hover:shadow-md transition-all group"
+              className="bg-white rounded-2xl border border-slate-200 p-5 cursor-pointer hover:shadow-lg hover:border-blue-200 transition-all group"
             >
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center text-2xl overflow-hidden">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center text-3xl overflow-hidden shadow-inner">
                   {patient.photo_url ? (
-                    <img src={patient.photo_url} alt={patient.name} className="w-full h-full object-cover" />
+                    <img src={patient.photo_url} alt={patient.name} className="w-full h-full object-cover rounded-2xl" />
                   ) : (
                     getPetEmoji(patient.species)
                   )}
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold text-slate-800">{patient.name}</h3>
+                  <h3 className="font-semibold text-slate-800 text-lg">{patient.name}</h3>
                   <p className="text-sm text-slate-500">{patient.species} · {patient.breed}</p>
                   <p className="text-xs text-slate-400 mt-1">Dueño: {patient.owner_name}</p>
                 </div>
-                <ChevronRight size={20} className="text-slate-300 group-hover:text-brand-500" />
+                <ChevronRight size={20} className="text-slate-300 group-hover:text-brand-500 group-hover:translate-x-1 transition-all" />
               </div>
             </div>
           ))}
         </div>
       ) : owners.length === 0 ? (
-        <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
-          <Users size={48} className="text-slate-300 mx-auto mb-4" />
-          <p className="text-slate-500">No se encontraron propietarios</p>
+        <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
+          <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Users size={36} className="text-slate-300" />
+          </div>
+          <p className="text-slate-600 font-medium">No se encontraron propietarios</p>
+          <p className="text-slate-400 text-sm mt-1">Crea un nuevo usuario para comenzar</p>
         </div>
       ) : (
         <div className="space-y-3">
           {owners.map(owner => (
             <div
               key={owner.id}
-              className="bg-white rounded-xl border border-slate-200 p-4 cursor-pointer hover:shadow-md transition-all group"
+              className="bg-white rounded-2xl border border-slate-200 p-5 cursor-pointer hover:shadow-lg hover:border-brand-200 transition-all group"
             >
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-brand-100 flex items-center justify-center text-brand-600 font-bold text-lg">
-                  {owner.full_name.charAt(0)}
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center text-white font-bold text-xl shadow-lg">
+                  {owner.full_name.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-3">
-                    <h3 className="font-semibold text-slate-800">{owner.full_name}</h3>
-                    <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                    <h3 className="font-semibold text-slate-800 text-lg">{owner.full_name}</h3>
+                    <span className="text-xs text-brand-600 bg-brand-50 px-2.5 py-1 rounded-full font-medium">
                       {owner.patients_count} mascota{owner.patients_count !== 1 ? 's' : ''}
                     </span>
                   </div>
@@ -367,11 +372,11 @@ export const VetUsersPage = () => {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={(e) => { e.stopPropagation(); handleOpenModal(owner); }}
-                    className="p-2 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
+                    className="p-3 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-xl transition-all"
                   >
                     <Edit2 size={18} />
                   </button>
-                  <ChevronRight size={20} className="text-slate-300 group-hover:text-brand-500" />
+                  <ChevronRight size={20} className="text-slate-300 group-hover:text-brand-500 group-hover:translate-x-1 transition-all" />
                 </div>
               </div>
             </div>
@@ -380,136 +385,139 @@ export const VetUsersPage = () => {
       )}
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white">
-              <h2 className="text-lg font-semibold text-slate-800">{isEditing ? 'Editar propietario' : 'Crear propietario'}</h2>
-              <button onClick={() => setShowModal(false)} className="p-1 text-slate-400 hover:text-slate-600">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
+              <div>
+                <h2 className="text-xl font-semibold text-slate-800">{isEditing ? 'Editar propietario' : 'Nuevo propietario'}</h2>
+                <p className="text-sm text-slate-500 mt-0.5">{isEditing ? 'Actualiza los datos del propietario' : 'Completa los datos para crear un nuevo propietario'}</p>
+              </div>
+              <button onClick={() => setShowModal(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-all">
                 <X size={20} />
               </button>
             </div>
 
-            <div className="p-6 space-y-6">
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Datos del propietario</h3>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Nombre completo *</label>
-                  <input
-                    type="text"
-                    value={ownerForm.full_name}
-                    onChange={(e) => setOwnerForm({ ...ownerForm, full_name: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
-                    placeholder="Juan Pérez"
-                  />
+            <div className="p-6 space-y-6 max-h-[calc(90vh-180px)] overflow-y-auto">
+              <div className="space-y-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-lg bg-brand-100 flex items-center justify-center">
+                    <Users size={16} className="text-brand-600" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wider">Datos del propietario</h3>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Email *</label>
-                  <input
-                    type="email"
-                    value={ownerForm.email}
-                    onChange={(e) => setOwnerForm({ ...ownerForm, email: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
-                    placeholder="juan@email.com"
-                  />
-                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">Nombre completo *</label>
+                    <input
+                      type="text"
+                      value={ownerForm.full_name}
+                      onChange={(e) => setOwnerForm({ ...ownerForm, full_name: e.target.value })}
+                      className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-slate-50/50 transition-all"
+                      placeholder="Juan Pérez"
+                    />
+                  </div>
 
-                {!isEditing && (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Contraseña *</label>
-                      <input
-                        type="password"
-                        value={ownerForm.password}
-                        onChange={(e) => setOwnerForm({ ...ownerForm, password: e.target.value })}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
-                        placeholder="Mínimo 8 caracteres"
-                      />
-                    </div>
+                  <div className="col-span-2">
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">Correo electrónico *</label>
+                    <input
+                      type="email"
+                      value={ownerForm.email}
+                      onChange={(e) => setOwnerForm({ ...ownerForm, email: e.target.value })}
+                      className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-slate-50/50 transition-all"
+                      placeholder="juan@email.com"
+                    />
+                  </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Confirmar contraseña *</label>
-                      <input
-                        type="password"
-                        value={ownerForm.confirm_password}
-                        onChange={(e) => setOwnerForm({ ...ownerForm, confirm_password: e.target.value })}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
-                        placeholder="Repite la contraseña"
-                      />
-                    </div>
-                  </>
-                )}
-
-                {isEditing && (
-                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                    <p className="text-sm text-amber-700">Para cambiar la contraseña, completa estos campos. De lo contrario, déjalos vacíos.</p>
-                    <div className="mt-2 grid grid-cols-2 gap-2">
+                  {!isEditing && (
+                    <>
                       <div>
-                        <label className="block text-xs font-medium text-amber-700 mb-1">Nueva contraseña</label>
+                        <label className="block text-xs font-medium text-slate-600 mb-1.5">Contraseña *</label>
                         <input
                           type="password"
                           value={ownerForm.password}
                           onChange={(e) => setOwnerForm({ ...ownerForm, password: e.target.value })}
-                          className="w-full px-3 py-2 border border-amber-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-                          placeholder="Nueva contraseña"
+                          className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-slate-50/50 transition-all"
+                          placeholder="Mínimo 8 caracteres"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-amber-700 mb-1">Confirmar</label>
+                        <label className="block text-xs font-medium text-slate-600 mb-1.5">Confirmar *</label>
                         <input
                           type="password"
                           value={ownerForm.confirm_password}
                           onChange={(e) => setOwnerForm({ ...ownerForm, confirm_password: e.target.value })}
-                          className="w-full px-3 py-2 border border-amber-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                          className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-slate-50/50 transition-all"
                           placeholder="Repite la contraseña"
                         />
                       </div>
+                    </>
+                  )}
+
+                  {isEditing && ownerForm.password && (
+                    <div className="col-span-2 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                      <p className="text-sm text-amber-700 font-medium">Cambiar contraseña</p>
+                      <div className="mt-2 grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-amber-700 mb-1">Nueva contraseña</label>
+                          <input
+                            type="password"
+                            value={ownerForm.password}
+                            onChange={(e) => setOwnerForm({ ...ownerForm, password: e.target.value })}
+                            className="w-full px-3 py-2 border border-amber-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                            placeholder="Nueva contraseña"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-amber-700 mb-1">Confirmar</label>
+                          <input
+                            type="password"
+                            value={ownerForm.confirm_password}
+                            onChange={(e) => setOwnerForm({ ...ownerForm, confirm_password: e.target.value })}
+                            className="w-full px-3 py-2 border border-amber-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                            placeholder="Repite la contraseña"
+                          />
+                        </div>
+                      </div>
                     </div>
+                  )}
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">Teléfono</label>
+                    <input
+                      type="tel"
+                      value={ownerForm.phone_number}
+                      onChange={(e) => setOwnerForm({ ...ownerForm, phone_number: e.target.value })}
+                      className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-slate-50/50 transition-all"
+                      placeholder="3001234567"
+                    />
                   </div>
-                )}
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Número de identificación</label>
-                  <input
-                    type="text"
-                    value={ownerForm.identification_number}
-                    onChange={(e) => setOwnerForm({ ...ownerForm, identification_number: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
-                    placeholder="12345678"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Teléfono</label>
-                  <input
-                    type="tel"
-                    value={ownerForm.phone_number}
-                    onChange={(e) => setOwnerForm({ ...ownerForm, phone_number: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
-                    placeholder="3001234567"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Dirección</label>
-                  <input
-                    type="text"
-                    value={ownerForm.address}
-                    onChange={(e) => setOwnerForm({ ...ownerForm, address: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
-                    placeholder="Calle 123 #45-67"
-                  />
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">Dirección</label>
+                    <input
+                      type="text"
+                      value={ownerForm.address}
+                      onChange={(e) => setOwnerForm({ ...ownerForm, address: e.target.value })}
+                      className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-slate-50/50 transition-all"
+                      placeholder="Calle 123 #45-67"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="border-t pt-6">
+              <div className="border-t border-slate-100 pt-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Mascotas</h3>
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+                      <Dog size={16} className="text-emerald-600" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wider">Mascotas</h3>
+                  </div>
                   <button
                     type="button"
                     onClick={handleAddPet}
-                    className="flex items-center gap-1 px-3 py-1.5 text-sm bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors"
+                    className="flex items-center gap-1.5 px-4 py-2 text-sm bg-emerald-100 text-emerald-700 rounded-xl hover:bg-emerald-200 transition-all font-medium"
                   >
                     <Plus size={16} />
                     Añadir mascota
@@ -517,9 +525,13 @@ export const VetUsersPage = () => {
                 </div>
 
                 {pets.length === 0 ? (
-                  <p className="text-sm text-slate-400 text-center py-4">
-                    No hay mascotas añadidas. Haz clic en "Añadir mascota" para agregar una.
-                  </p>
+                  <div className="text-center py-10 px-4 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/30">
+                    <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                      <Dog size={24} className="text-slate-400" />
+                    </div>
+                    <p className="text-sm text-slate-500">No hay mascotas añadidas</p>
+                    <p className="text-xs text-slate-400 mt-1">Haz clic en "Añadir mascota" para agregar una</p>
+                  </div>
                 ) : (
                   <div className="space-y-4">
                     {pets.map((pet, index) => (
@@ -537,19 +549,27 @@ export const VetUsersPage = () => {
               </div>
             </div>
 
-            <div className="flex gap-3 p-4 border-t bg-slate-50">
+            <div className="flex gap-3 p-6 border-t border-slate-100 bg-slate-50/50">
               <button
                 onClick={() => setShowModal(false)}
-                className="flex-1 px-4 py-2 text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+                className="flex-1 px-4 py-3 text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all font-medium"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleSave}
-                disabled={!ownerForm.full_name || !ownerForm.email || !ownerForm.password || isSaving}
-                className="flex-1 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 transition-colors"
+                disabled={!ownerForm.full_name || !ownerForm.email || isSaving}
+                className="flex-1 px-4 py-3 bg-brand-600 text-white rounded-xl hover:bg-brand-700 disabled:opacity-50 transition-all font-medium shadow-lg shadow-brand-600/20"
               >
-                {isSaving ? 'Guardando...' : 'Guardar'}
+                {isSaving ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Guardando...
+                  </span>
+                ) : isEditing ? 'Actualizar' : 'Crear propietario'}
               </button>
             </div>
           </div>
@@ -569,133 +589,173 @@ interface PetFormCardProps {
 
 function PetFormCard({ pet, index, onChange, onRemove, canRemove }: PetFormCardProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [showPhotoUpload, setShowPhotoUpload] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      onChange('photo_file', file);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      onChange('photo_file', file);
+    }
+  };
 
   return (
-    <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-sm font-medium text-slate-600">Mascota {index + 1}</span>
+    <div className="p-5 bg-gradient-to-br from-slate-50 to-white border border-slate-200 rounded-2xl shadow-sm">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600 text-sm font-bold">
+            {index + 1}
+          </div>
+          <span className="text-sm font-medium text-slate-600">Mascota {index + 1}</span>
+        </div>
         {canRemove && (
           <button
             type="button"
             onClick={onRemove}
-            className="p-1 text-slate-400 hover:text-red-500 transition-colors"
+            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
           >
             <Trash2 size={16} />
           </button>
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Nombre *</label>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="col-span-2 md:col-span-1">
+          <label className="block text-xs font-medium text-slate-600 mb-1.5">Nombre *</label>
           <input
             type="text"
             value={pet.name}
             onChange={(e) => onChange('name', e.target.value)}
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white transition-all"
             placeholder="Luna"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Especie *</label>
+          <label className="block text-xs font-medium text-slate-600 mb-1.5">Especie *</label>
           <select
             value={pet.species}
             onChange={(e) => onChange('species', e.target.value)}
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white transition-all"
           >
             <option value="">Seleccionar</option>
             <option value="Canino">Canino</option>
             <option value="Felino">Felino</option>
-            <option value="Ave">Ave</option>
-            <option value="Reptil">Reptil</option>
-            <option value="Roedor">Roedor</option>
-            <option value="Otro">Otro</option>
           </select>
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Raza</label>
+          <label className="block text-xs font-medium text-slate-600 mb-1.5">Raza</label>
           <input
             type="text"
             value={pet.breed}
             onChange={(e) => onChange('breed', e.target.value)}
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white transition-all"
             placeholder="Labrador"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Fecha de nacimiento</label>
+          <label className="block text-xs font-medium text-slate-600 mb-1.5">Fecha nacimiento</label>
           <input
             type="date"
             value={pet.birth_date}
             onChange={(e) => onChange('birth_date', e.target.value)}
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white transition-all"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Peso (kg)</label>
+          <label className="block text-xs font-medium text-slate-600 mb-1.5">Peso (kg)</label>
           <input
             type="number"
             value={pet.current_weight}
             onChange={(e) => onChange('current_weight', e.target.value)}
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white transition-all"
             placeholder="15.5"
             step="0.1"
           />
         </div>
 
-        <div className="md:col-span-2">
-          <label className="block text-xs font-medium text-slate-600 mb-1">Foto</label>
-          <div className="flex items-center gap-2">
-            {pet.photo_url ? (
-              <div className="relative">
-                <img src={pet.photo_url} alt={pet.name} className="w-16 h-16 rounded-lg object-cover border border-slate-200" />
-                <button
-                  type="button"
-                  onClick={() => onChange('photo_url', '')}
-                  className="absolute -top-2 -right-2 p-1 bg-red-100 text-red-500 rounded-full"
-                >
-                  <X size={12} />
-                </button>
-              </div>
-            ) : pet.photo_file ? (
-              <div className="relative">
-                <img src={URL.createObjectURL(pet.photo_file)} alt={pet.name} className="w-16 h-16 rounded-lg object-cover border border-slate-200" />
-                <button
-                  type="button"
-                  onClick={() => onChange('photo_file', null)}
-                  className="absolute -top-2 -right-2 p-1 bg-red-100 text-red-500 rounded-full"
-                >
-                  <X size={12} />
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setShowPhotoUpload(!showPhotoUpload)}
-                className="flex items-center gap-2 px-3 py-2 border border-dashed border-slate-300 rounded-lg text-sm text-slate-500 hover:border-brand-500 hover:text-brand-500 transition-colors"
-              >
-                <Upload size={16} />
-                Subir foto
-              </button>
-            )}
-          </div>
-          {showPhotoUpload && !pet.photo_url && !pet.photo_file && (
+        <div className="col-span-2 md:col-span-3">
+          <label className="block text-xs font-medium text-slate-600 mb-1.5">Foto</label>
+          <div
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={`relative border-2 border-dashed rounded-xl transition-all cursor-pointer ${
+              isDragging
+                ? 'border-emerald-500 bg-emerald-50'
+                : pet.photo_url || pet.photo_file
+                ? 'border-emerald-200 bg-emerald-50/30'
+                : 'border-slate-300 bg-white hover:border-emerald-400 hover:bg-emerald-50/30'
+            }`}
+            onClick={() => fileInputRef.current?.click()}
+          >
             <input
               ref={fileInputRef}
               type="file"
               accept="image/*"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) onChange('photo_file', file);
-              }}
-              className="mt-2 text-sm"
+              onChange={handleFileSelect}
+              className="hidden"
             />
-          )}
+            {pet.photo_url ? (
+              <div className="flex items-center gap-4 p-3">
+                <img src={pet.photo_url} alt={pet.name} className="w-16 h-16 rounded-xl object-cover shadow-md" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-slate-700">Foto cargada</p>
+                  <p className="text-xs text-slate-500">Clic para cambiar</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onChange('photo_url', ''); }}
+                  className="p-2 text-red-500 hover:bg-red-100 rounded-lg transition-all"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ) : pet.photo_file ? (
+              <div className="flex items-center gap-4 p-3">
+                <img src={URL.createObjectURL(pet.photo_file)} alt={pet.name} className="w-16 h-16 rounded-xl object-cover shadow-md" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-slate-700">{pet.photo_file.name}</p>
+                  <p className="text-xs text-slate-500">Clic para cambiar</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onChange('photo_file', null); }}
+                  className="p-2 text-red-500 hover:bg-red-100 rounded-lg transition-all"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-8 px-4">
+                <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mb-3">
+                  <Camera size={24} className="text-slate-400" />
+                </div>
+                <p className="text-sm font-medium text-slate-600">Arrastra una foto aquí</p>
+                <p className="text-xs text-slate-400 mt-1">o haz clic para seleccionar</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
