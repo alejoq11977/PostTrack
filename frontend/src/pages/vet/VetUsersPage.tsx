@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Users, Search, Plus, X, ChevronRight, Dog, Phone, Mail, Edit2, Upload, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Users, Search, Plus, X, ChevronRight, Dog, Edit2, Upload, Trash2 } from 'lucide-react';
 import { vetService, VetOwner, VetPatient } from '@/features/vet/api/vet.service';
 
 const PET_ICONS: Record<string, string> = {
@@ -66,6 +66,8 @@ export const VetUsersPage = () => {
   const [searchType, setSearchType] = useState<'owner' | 'patient'>('owner');
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingOwnerId, setEditingOwnerId] = useState<number | null>(null);
   const [ownerForm, setOwnerForm] = useState<OwnerFormData>(initialOwnerForm);
   const [pets, setPets] = useState<PetFormData[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -118,8 +120,24 @@ export const VetUsersPage = () => {
     return () => clearTimeout(timeout);
   }, [search, searchType]);
 
-  const handleOpenModal = () => {
-    setOwnerForm(initialOwnerForm);
+  const handleOpenModal = (owner?: VetOwner) => {
+    if (owner) {
+      setIsEditing(true);
+      setEditingOwnerId(owner.id);
+      setOwnerForm({
+        full_name: owner.full_name,
+        email: owner.email,
+        password: '',
+        confirm_password: '',
+        identification_number: owner.identification_number || '',
+        phone_number: owner.phone_number || '',
+        address: owner.address || '',
+      });
+    } else {
+      setIsEditing(false);
+      setEditingOwnerId(null);
+      setOwnerForm(initialOwnerForm);
+    }
     setPets([]);
     setShowModal(true);
   };
@@ -153,41 +171,75 @@ export const VetUsersPage = () => {
   };
 
   const handleSave = async () => {
-    if (!ownerForm.full_name || !ownerForm.email || !ownerForm.password) return;
+    if (!ownerForm.full_name || !ownerForm.email) return;
 
-    if (ownerForm.password !== ownerForm.confirm_password) {
+    if (!isEditing && (!ownerForm.password || !ownerForm.confirm_password)) {
+      alert('La contraseña es obligatoria para nuevos propietarios');
+      return;
+    }
+
+    if (ownerForm.password && ownerForm.password !== ownerForm.confirm_password) {
       alert('Las contraseñas no coinciden');
       return;
     }
 
     setIsSaving(true);
     try {
-      const owner = await vetService.createOwner({
-        full_name: ownerForm.full_name,
-        email: ownerForm.email,
-        password: ownerForm.password,
-        confirm_password: ownerForm.confirm_password,
-        identification_number: ownerForm.identification_number,
-        phone_number: ownerForm.phone_number,
-        address: ownerForm.address,
-      });
+      if (isEditing && editingOwnerId) {
+        await vetService.updateOwner(editingOwnerId, {
+          full_name: ownerForm.full_name,
+          email: ownerForm.email,
+          identification_number: ownerForm.identification_number,
+          phone_number: ownerForm.phone_number,
+          address: ownerForm.address,
+        });
 
-      for (const pet of pets) {
-        if (pet.name && pet.species) {
-          let photoUrl = pet.photo_url;
-          if (pet.photo_file) {
-            const uploaded = await uploadPetPhoto(pet.photo_file);
-            if (uploaded) photoUrl = uploaded;
+        for (const pet of pets) {
+          if (pet.name && pet.species) {
+            let photoUrl = pet.photo_url;
+            if (pet.photo_file) {
+              const uploaded = await uploadPetPhoto(pet.photo_file);
+              if (uploaded) photoUrl = uploaded;
+            }
+            await vetService.createPatient({
+              owner_id: editingOwnerId,
+              name: pet.name,
+              species: pet.species,
+              breed: pet.breed,
+              birth_date: pet.birth_date,
+              current_weight: parseFloat(pet.current_weight) || 0,
+              photo_url: photoUrl,
+            });
           }
-          await vetService.createPatient({
-            owner_id: owner.id,
-            name: pet.name,
-            species: pet.species,
-            breed: pet.breed,
-            birth_date: pet.birth_date,
-            current_weight: parseFloat(pet.current_weight) || 0,
-            photo_url: photoUrl,
-          });
+        }
+      } else {
+        const owner = await vetService.createOwner({
+          full_name: ownerForm.full_name,
+          email: ownerForm.email,
+          password: ownerForm.password,
+          confirm_password: ownerForm.confirm_password,
+          identification_number: ownerForm.identification_number,
+          phone_number: ownerForm.phone_number,
+          address: ownerForm.address,
+        });
+
+        for (const pet of pets) {
+          if (pet.name && pet.species) {
+            let photoUrl = pet.photo_url;
+            if (pet.photo_file) {
+              const uploaded = await uploadPetPhoto(pet.photo_file);
+              if (uploaded) photoUrl = uploaded;
+            }
+            await vetService.createPatient({
+              owner_id: owner.id,
+              name: pet.name,
+              species: pet.species,
+              breed: pet.breed,
+              birth_date: pet.birth_date,
+              current_weight: parseFloat(pet.current_weight) || 0,
+              photo_url: photoUrl,
+            });
+          }
         }
       }
 
@@ -313,24 +365,8 @@ export const VetUsersPage = () => {
                   <p className="text-sm text-slate-500">{owner.email}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  {owner.phone_number && (
-                    <a
-                      href={`tel:${owner.phone_number}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="p-2 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
-                    >
-                      <Phone size={18} />
-                    </a>
-                  )}
-                  <a
-                    href={`mailto:${owner.email}`}
-                    onClick={(e) => e.stopPropagation()}
-                    className="p-2 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
-                  >
-                    <Mail size={18} />
-                  </a>
                   <button
-                    onClick={(e) => { e.stopPropagation(); }}
+                    onClick={(e) => { e.stopPropagation(); handleOpenModal(owner); }}
                     className="p-2 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
                   >
                     <Edit2 size={18} />
@@ -347,7 +383,7 @@ export const VetUsersPage = () => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white">
-              <h2 className="text-lg font-semibold text-slate-800">Crear propietario</h2>
+              <h2 className="text-lg font-semibold text-slate-800">{isEditing ? 'Editar propietario' : 'Crear propietario'}</h2>
               <button onClick={() => setShowModal(false)} className="p-1 text-slate-400 hover:text-slate-600">
                 <X size={20} />
               </button>
@@ -379,27 +415,59 @@ export const VetUsersPage = () => {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Contraseña *</label>
-                  <input
-                    type="password"
-                    value={ownerForm.password}
-                    onChange={(e) => setOwnerForm({ ...ownerForm, password: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
-                    placeholder="Mínimo 8 caracteres"
-                  />
-                </div>
+                {!isEditing && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Contraseña *</label>
+                      <input
+                        type="password"
+                        value={ownerForm.password}
+                        onChange={(e) => setOwnerForm({ ...ownerForm, password: e.target.value })}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
+                        placeholder="Mínimo 8 caracteres"
+                      />
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Confirmar contraseña *</label>
-                  <input
-                    type="password"
-                    value={ownerForm.confirm_password}
-                    onChange={(e) => setOwnerForm({ ...ownerForm, confirm_password: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
-                    placeholder="Repite la contraseña"
-                  />
-                </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Confirmar contraseña *</label>
+                      <input
+                        type="password"
+                        value={ownerForm.confirm_password}
+                        onChange={(e) => setOwnerForm({ ...ownerForm, confirm_password: e.target.value })}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
+                        placeholder="Repite la contraseña"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {isEditing && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-sm text-amber-700">Para cambiar la contraseña, completa estos campos. De lo contrario, déjalos vacíos.</p>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs font-medium text-amber-700 mb-1">Nueva contraseña</label>
+                        <input
+                          type="password"
+                          value={ownerForm.password}
+                          onChange={(e) => setOwnerForm({ ...ownerForm, password: e.target.value })}
+                          className="w-full px-3 py-2 border border-amber-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                          placeholder="Nueva contraseña"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-amber-700 mb-1">Confirmar</label>
+                        <input
+                          type="password"
+                          value={ownerForm.confirm_password}
+                          onChange={(e) => setOwnerForm({ ...ownerForm, confirm_password: e.target.value })}
+                          className="w-full px-3 py-2 border border-amber-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                          placeholder="Repite la contraseña"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Número de identificación</label>
