@@ -151,9 +151,29 @@ class VetPatientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Patient
         fields = [
-            'id', 'name', 'species', 'breed', 'photo_url',
+            'id', 'name', 'species', 'breed', 'birth_date', 'current_weight', 'photo_url',
             'owner_name', 'owner_phone', 'owner_email'
         ]
+
+
+class VetPatientCreateSerializer(serializers.ModelSerializer):
+    owner_id = serializers.IntegerField(write_only=True, required=False)
+
+    class Meta:
+        model = Patient
+        fields = ['name', 'species', 'breed', 'birth_date', 'current_weight', 'photo_url', 'owner_id']
+
+    def create(self, validated_data):
+        from apps.clinics.models import VetClinic
+        owner_id = validated_data.pop('owner_id', None)
+        clinic = None
+        if owner_id:
+            owner = User.objects.get(id=owner_id)
+            vet_clinic = VetClinic.objects.filter(veterinarian=self.context['request'].user, is_active=True).first()
+            if vet_clinic:
+                clinic = vet_clinic.clinic
+            return Patient.objects.create(owner=owner, clinic=clinic, **validated_data)
+        return Patient.objects.create(**validated_data)
 
 
 class VetMonitoringSerializer(serializers.ModelSerializer):

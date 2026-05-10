@@ -11,7 +11,7 @@ from apps.monitoring.models import Report, SurgicalMonitoring
 from apps.monitoring.serializers.monitoring import ReportHistorySerializer
 from apps.patients.models import Patient
 from apps.users.models import User
-from apps.vet.serializers import VetReportSerializer, VetReportDetailSerializer, VetOwnerSerializer, VetOwnerCreateSerializer, VetPatientSerializer, VetMonitoringSerializer, VetMonitoringCreateSerializer
+from apps.vet.serializers import VetReportSerializer, VetReportDetailSerializer, VetOwnerSerializer, VetOwnerCreateSerializer, VetPatientSerializer, VetPatientCreateSerializer, VetMonitoringSerializer, VetMonitoringCreateSerializer
 from apps.clinics.models import VetClinic
 
 
@@ -194,6 +194,21 @@ class VetPatientsSearchView(generics.ListAPIView):
             queryset = queryset.filter(name__icontains=search)
 
         return queryset.order_by('name')[:20]
+
+
+class VetPatientsCreateView(generics.CreateAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = VetPatientCreateSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        owner_id = serializer.validated_data.pop('owner_id', None)
+        if owner_id:
+            serializer.validated_data['owner_id'] = owner_id
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 
 class VetMonitoringsListView(generics.ListCreateAPIView):

@@ -150,6 +150,19 @@ export const vetService = {
     return response.data;
   },
 
+  createPatient: async (data: {
+    owner_id: number;
+    name: string;
+    species: string;
+    breed: string;
+    birth_date: string;
+    current_weight: number;
+    photo_url?: string;
+  }): Promise<VetPatient> => {
+    const response = await apiClient.post<VetPatient>('/vet/patients/', data);
+    return response.data;
+  },
+
   getMonitorings: async (): Promise<VetMonitoring[]> => {
     const response = await apiClient.get<VetMonitoring[]>('/vet/monitorings/');
     return response.data;
