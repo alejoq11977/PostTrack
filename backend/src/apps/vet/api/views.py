@@ -4,6 +4,7 @@ from rest_framework import generics, status, viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
+from rest_framework.pagination import LimitOffsetPagination
 from django.http import StreamingHttpResponse, JsonResponse
 import json
 import time
@@ -34,6 +35,8 @@ class ClinicFilteredMixin:
 
 class VetReportsListView(ClinicFilteredMixin, generics.ListAPIView):
     permission_classes = [IsAuthenticated]
+    pagination_class = LimitOffsetPagination
+    default_limit = 10
 
     def get_serializer_class(self):
         return VetReportSerializer
@@ -55,6 +58,10 @@ class VetReportsListView(ClinicFilteredMixin, generics.ListAPIView):
             queryset = queryset.filter(review_status='PENDING')
         elif filter_param == 'reviewed':
             queryset = queryset.filter(review_status='REVIEWED')
+
+        monitoring_id = self.request.query_params.get('monitoring')
+        if monitoring_id:
+            queryset = queryset.filter(monitoring_id=monitoring_id)
 
         return queryset
 
@@ -136,9 +143,9 @@ def vet_reports_stats(request):
         reviewed_at__gte=today_start
     ).count()
 
-    total_active = Report.objects.filter(
-        monitoring__patient__clinic_id__in=clinic_ids,
-        monitoring__status='ACTIVE'
+    total_active = SurgicalMonitoring.objects.filter(
+        patient__clinic_id__in=clinic_ids,
+        status='ACTIVE'
     ).count()
 
     high_risk = Report.objects.filter(
@@ -190,9 +197,6 @@ class VetOwnersListView(generics.ListCreateAPIView):
         ).values_list('clinic_id', flat=True))
         context['clinic_ids'] = clinic_ids
         return context
-
-    def perform_create(self, serializer):
-        serializer.save(role='OWNER')
 
 
 class VetOwnerDetailView(generics.RetrieveUpdateAPIView):
@@ -283,6 +287,7 @@ def vet_sse_alerts(request):
     from firebase_admin import auth as firebase_auth
     from django.contrib.auth import get_user_model
     from django.http import StreamingHttpResponse
+    from datetime import timedelta
     import json
     import time
 
@@ -329,47 +334,72 @@ def vet_sse_alerts(request):
     def event_stream():
         clinic_ids = list(VetClinic.objects.filter(veterinarian=user, is_active=True).values_list('clinic_id', flat=True))
 
+        def get_reports_data_safe():
+            try:
+                pending_reports = Report.objects.filter(
+                    monitoring__patient__clinic_id__in=clinic_ids,
+                    review_status='PENDING'
+                ).select_related(
+                    'monitoring',
+                    'monitoring__patient',
+                    'monitoring__patient__owner'
+                )
+
+                high_risk = pending_reports.filter(calculated_risk='HIGH')
+                medium_risk = pending_reports.filter(calculated_risk='MEDIUM')
+                low_risk = pending_reports.filter(calculated_risk='LOW')
+                no_risk = pending_reports.filter(calculated_risk__isnull=True)
+
+                sorted_reports = list(high_risk) + list(medium_risk) + list(low_risk) + list(no_risk)
+
+                active_monitorings = SurgicalMonitoring.objects.filter(
+                    patient__clinic_id__in=clinic_ids,
+                    status='ACTIVE'
+                ).select_related('patient', 'patient__owner')
+                missing_count = 0
+                now = timezone.now()
+                for monitoring in active_monitorings:
+                    last_report = monitoring.reports.order_by('-submitted_at').first()
+                    if last_report:
+                        expected_next = last_report.submitted_at + timedelta(hours=monitoring.report_frequency_hours)
+                    else:
+                        expected_next = monitoring.surgery_date + timedelta(hours=monitoring.report_frequency_hours)
+                    if now > expected_next:
+                        missing_count += 1
+
+                return {
+                    'type': 'reports_update',
+                    'count': pending_reports.count(),
+                    'alert_count': high_risk.count(),
+                    'missing_count': missing_count,
+                    'reports': VetReportSerializer(pending_reports.order_by('-submitted_at')[:20], many=True).data
+                }
+            except Exception as e:
+                print(f"[SSE] Error in get_reports_data_safe: {e}")
+                return {
+                    'type': 'reports_update',
+                    'count': 0,
+                    'alert_count': 0,
+                    'missing_count': 0,
+                    'reports': [],
+                    'error': str(e)
+                }
+
         try:
             yield f"data: {json.dumps({'type': 'connected', 'message': 'SSE stream started'})}\n\n"
         except GeneratorExit:
             return
 
-        risk_order = {'HIGH': 0, 'MEDIUM': 1, 'LOW': 2, None: 3}
-
-        def get_reports_data():
-            pending_reports = Report.objects.filter(
-                monitoring__patient__clinic_id__in=clinic_ids,
-                review_status='PENDING'
-            ).select_related(
-                'monitoring',
-                'monitoring__patient',
-                'monitoring__patient__owner'
-            )
-
-            high_risk = pending_reports.filter(calculated_risk='HIGH')
-            medium_risk = pending_reports.filter(calculated_risk='MEDIUM')
-            low_risk = pending_reports.filter(calculated_risk='LOW')
-            no_risk = pending_reports.filter(calculated_risk__isnull=True)
-
-            sorted_reports = list(high_risk) + list(medium_risk) + list(low_risk) + list(no_risk)
-
-            return {
-                'type': 'reports_update',
-                'count': pending_reports.count(),
-                'alert_count': high_risk.count(),
-                'alerts': VetReportSerializer(sorted_reports[:10], many=True).data,
-                'reports': VetReportSerializer(pending_reports.order_by('-submitted_at')[:20], many=True).data
-            }
-
-        yield f"data: {json.dumps(get_reports_data())}\n\n"
-
         while True:
             try:
                 time.sleep(5)
-
-                yield f"data: {json.dumps(get_reports_data())}\n\n"
+                data = get_reports_data_safe()
+                yield f"data: {json.dumps(data)}\n\n"
             except GeneratorExit:
                 break
+            except Exception as e:
+                print(f"[SSE] Error in event stream loop: {e}")
+                time.sleep(5)
 
     response = StreamingHttpResponse(event_stream(), content_type='text/event-stream')
     response['Cache-Control'] = 'no-cache'
@@ -399,10 +429,27 @@ def vet_alerts_all(request):
 
     sorted_reports = list(high_risk) + list(medium_risk) + list(low_risk) + list(no_risk)
 
+    page = int(request.query_params.get('page', 1))
+    limit = int(request.query_params.get('limit', 10))
+    offset = (page - 1) * limit
+
+    total_count = len(sorted_reports)
+    paginated_reports = sorted_reports[offset:offset + limit]
+
+    next_url = None
+    if offset + limit < total_count:
+        next_url = f"/api/vet/alerts/all/?page={page+1}&limit={limit}"
+
+    prev_url = None
+    if page > 1:
+        prev_url = f"/api/vet/alerts/all/?page={page-1}&limit={limit}"
+
     data = {
-        'count': pending_reports.count(),
+        'count': total_count,
         'alert_count': high_risk.count(),
-        'results': VetReportSerializer(sorted_reports, many=True).data
+        'next': next_url,
+        'previous': prev_url,
+        'results': VetReportSerializer(paginated_reports, many=True).data
     }
 
     return Response(data)
@@ -446,6 +493,7 @@ def vet_missing_reports(request):
                 'owner_name': monitoring.patient.owner.full_name,
                 'owner_phone': monitoring.patient.owner.phone_number,
                 'owner_email': monitoring.patient.owner.email,
+                'owner_identification_number': monitoring.patient.owner.identification_number,
                 'surgery_type': monitoring.surgery_type,
                 'surgery_date': monitoring.surgery_date,
                 'day_number': days_since_surgery,
@@ -457,7 +505,19 @@ def vet_missing_reports(request):
 
     missing_reports.sort(key=lambda x: x['minutes_overdue'], reverse=True)
 
+    limit = int(request.query_params.get('limit', 10))
+    offset = int(request.query_params.get('offset', 0))
+
+    total_count = len(missing_reports)
+    paginated_reports = missing_reports[offset:offset + limit]
+
+    next_url = None
+    if offset + limit < total_count:
+        next_url = f"/api/vet/reports/missing/?limit={limit}&offset={offset + limit}"
+
     return Response({
-        'count': len(missing_reports),
-        'results': missing_reports
+        'count': total_count,
+        'next': next_url,
+        'previous': None,
+        'results': paginated_reports
     })

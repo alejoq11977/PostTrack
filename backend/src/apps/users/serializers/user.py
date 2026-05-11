@@ -6,13 +6,13 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
     def get_terms_accepted_version(self, obj):
         if obj.terms_accepted_version:
-            return obj.terms_accepted_version.version  
+            return obj.terms_accepted_version.version
         return None
 
     class Meta:
         model = User
         fields = (
-            'id', 'email', 'full_name', 'identification_number',
+            'id', 'email', 'full_name', 'identification_type', 'identification_number',
             'phone_number', 'address', 'role', 'password_changed',
             'terms_accepted_at', 'terms_accepted_ip', 'terms_accepted_version',
             'managed_by'
@@ -25,14 +25,15 @@ class UserProfileSerializer(serializers.ModelSerializer):
 class OwnerCreateSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(required=True)
     full_name = serializers.CharField(required=True)
+    identification_type = serializers.ChoiceField(choices=['CC', 'CE', 'PA', 'PEP'], required=True)
     identification_number = serializers.CharField(required=True)
-    
+
     phone_number = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     address = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    
+
     class Meta:
         model = User
-        fields = ('email', 'full_name', 'identification_number', 'phone_number', 'address')
+        fields = ('email', 'full_name', 'identification_type', 'identification_number', 'phone_number', 'address')
 
 class PrivacyPolicyVersionSerializer(serializers.ModelSerializer):
     class Meta:

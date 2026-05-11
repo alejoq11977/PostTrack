@@ -21,16 +21,20 @@ export const ProtectedRoute = () => {
   };
 
   const isAuthRoute = location.pathname === '/login';
+  const isForgotPasswordRoute = location.pathname === '/forgot-password';
   const isAcceptTermsRoute = location.pathname === '/accept-terms';
   const isCompleteProfileRoute = location.pathname === '/complete-profile';
   const isSelectClinicRoute = location.pathname === '/select-clinic';
   const isPolicyRoute = location.pathname === '/politica-datos';
   const isAuthorizationRoute = location.pathname === '/autorizacion-datos';
 
+  const isVetPath = location.pathname.startsWith('/vet') || location.pathname === '/alerts';
+  const isOwnerPath = ['/', '/pets', '/report', '/history', '/form-result'].some(p => location.pathname === p || location.pathname.startsWith(p + '/'));
+
   useEffect(() => {
     if (!user || !activeClinic) return;
 
-    if (isAuthRoute || isCompleteProfileRoute || isAcceptTermsRoute || isSelectClinicRoute || isPolicyRoute || isAuthorizationRoute) {
+    if (isAuthRoute || isForgotPasswordRoute || isCompleteProfileRoute || isAcceptTermsRoute || isSelectClinicRoute || isPolicyRoute || isAuthorizationRoute) {
       return;
     }
 
@@ -48,7 +52,7 @@ export const ProtectedRoute = () => {
       .finally(() => {
         checkingRef.current = false;
       });
-  }, [user, activeClinic, location.pathname, isAuthRoute, isCompleteProfileRoute, isAcceptTermsRoute, isSelectClinicRoute, isPolicyRoute, isAuthorizationRoute]);
+  }, [user, activeClinic, location.pathname, isAuthRoute, isForgotPasswordRoute, isCompleteProfileRoute, isAcceptTermsRoute, isSelectClinicRoute, isPolicyRoute, isAuthorizationRoute]);
 
   if (isAuthLoading || !isInitialized) {
     return (
@@ -115,6 +119,14 @@ export const ProtectedRoute = () => {
       return <Navigate to="/" replace />;
     }
     return <Outlet />;
+  }
+
+  const isVet = user.role === 'VETERINARIAN' || user.role === 'ADMIN';
+  if (isVetPath && !isVet) {
+    return <Navigate to="/" replace />;
+  }
+  if (isOwnerPath && isVet) {
+    return <Navigate to="/vet/dashboard" replace />;
   }
 
   if (pendingTerms && !isAcceptTermsRoute && !isPolicyRoute && !isAuthorizationRoute) {

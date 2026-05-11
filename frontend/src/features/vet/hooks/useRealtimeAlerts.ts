@@ -12,9 +12,12 @@ interface UseRealtimeAlertsReturn {
   alerts: VetReport[];
   missingReports: MissingReport[];
   alertCount: number;
+  missingCount: number;
   isConnected: boolean;
   isLoading: boolean;
+  isRefreshing: boolean;
   error: string | null;
+  refresh: () => void;
 }
 
 const getApiBaseUrl = () => {
@@ -34,15 +37,51 @@ export function useRealtimeAlerts(options: UseRealtimeAlertsOptions = {}): UseRe
   const [alerts, setAlerts] = useState<VetReport[]>(initialAlerts);
   const [missingReports, setMissingReports] = useState<MissingReport[]>([]);
   const [alertCount, setAlertCount] = useState(0);
+  const [missingCount, setMissingCount] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const maxReconnectDelay = 30000;
 
-  const loadInitialData = useCallback(async () => {
+  const pendingUpdateRef = useRef<{
+    reports?: VetReport[];
+    alerts?: VetReport[];
+    alert_count?: number;
+    missing_count?: number;
+  } | null>(null);
+  const rafIdRef = useRef<number | null>(null);
+
+  const scheduleUpdate = useCallback(() => {
+    if (rafIdRef.current === null) {
+      rafIdRef.current = requestAnimationFrame(() => {
+        rafIdRef.current = null;
+        if (pendingUpdateRef.current) {
+          if (pendingUpdateRef.current.reports) {
+            setReports(pendingUpdateRef.current.reports);
+          }
+          if (pendingUpdateRef.current.alerts) {
+            setAlerts(pendingUpdateRef.current.alerts);
+          }
+          if (pendingUpdateRef.current.alert_count !== undefined) {
+            setAlertCount(pendingUpdateRef.current.alert_count);
+          }
+          if (pendingUpdateRef.current.missing_count !== undefined) {
+            setMissingCount(pendingUpdateRef.current.missing_count);
+          }
+          pendingUpdateRef.current = null;
+        }
+      });
+    }
+  }, []);
+
+  const loadInitialData = useCallback(async (isRefresh = false) => {
+    if (isRefresh) {
+      setIsRefreshing(true);
+    }
     try {
       const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
       if (!token) return;
@@ -51,9 +90,9 @@ export function useRealtimeAlerts(options: UseRealtimeAlertsOptions = {}): UseRe
       const headers = { 'Authorization': `Bearer ${token}` };
 
       const [reportsRes, alertsRes, missingRes] = await Promise.all([
-        fetch(`${baseUrl}/api/vet/reports/?filter=pending`, { headers }),
-        fetch(`${baseUrl}/api/vet/alerts/all/`, { headers }),
-        fetch(`${baseUrl}/api/vet/reports/missing/`, { headers })
+        fetch(`${baseUrl}/api/vet/reports/?filter=pending&limit=10`, { headers }),
+        fetch(`${baseUrl}/api/vet/alerts/all/?limit=10`, { headers }),
+        fetch(`${baseUrl}/api/vet/reports/missing/?limit=10`, { headers })
       ]);
 
       if (reportsRes.ok) {
@@ -70,13 +109,20 @@ export function useRealtimeAlerts(options: UseRealtimeAlertsOptions = {}): UseRe
 
       if (missingRes.ok) {
         const missingData = await missingRes.json();
-        setMissingReports(missingData.results || missingData);
+        const results = Array.isArray(missingData.results) ? missingData.results : (Array.isArray(missingData) ? missingData : []);
+        setMissingReports(results);
+        const count = missingData.count || (Array.isArray(missingData.results) ? missingData.results.length : (Array.isArray(missingData) ? missingData.length : 0));
+        setMissingCount(count);
       }
 
       setIsLoading(false);
     } catch (err) {
       console.error('[SSE] Error loading initial data:', err);
       setIsLoading(false);
+    } finally {
+      if (isRefresh) {
+        setIsRefreshing(false);
+      }
     }
   }, []);
 
@@ -109,19 +155,16 @@ export function useRealtimeAlerts(options: UseRealtimeAlertsOptions = {}): UseRe
       };
 
       eventSource.onmessage = (event) => {
-        console.log('[SSE] Message received:', event.data);
         try {
           const data = JSON.parse(event.data);
           if (data.type === 'reports_update') {
-            if (data.reports) {
-              setReports(prev => mergeReports(prev, data.reports));
-            }
-            if (data.alerts) {
-              setAlerts(prev => mergeReports(prev, data.alerts));
-            }
-            if (typeof data.alert_count === 'number') {
-              setAlertCount(data.alert_count);
-            }
+            pendingUpdateRef.current = {
+              reports: data.reports || [],
+              alerts: data.reports || [],
+              alert_count: data.alert_count,
+              missing_count: data.missing_count
+            };
+            scheduleUpdate();
           }
         } catch (err) {
           console.error('[SSE] Error parsing message:', err);
@@ -157,19 +200,32 @@ export function useRealtimeAlerts(options: UseRealtimeAlertsOptions = {}): UseRe
   }, []);
 
   useEffect(() => {
-    loadInitialData();
-    connect();
+    let isMounted = true;
+
+    const init = async () => {
+      await loadInitialData();
+      if (isMounted) {
+        connect();
+      }
+    };
+
+    init();
 
     const pollMissing = setInterval(async () => {
       try {
         const data = await vetService.getMissingReports();
-        setMissingReports(data);
+        setMissingReports(data.results || []);
+        setMissingCount(data.count || 0);
       } catch (err) {
         console.error('[Poll] Error fetching missing reports:', err);
       }
     }, 30000);
 
     return () => {
+      isMounted = false;
+      if (rafIdRef.current) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
         eventSourceRef.current = null;
@@ -181,18 +237,5 @@ export function useRealtimeAlerts(options: UseRealtimeAlertsOptions = {}): UseRe
     };
   }, [connect, loadInitialData]);
 
-  return { reports, alerts, missingReports, alertCount, isConnected, isLoading, error };
-}
-
-function mergeReports(existing: VetReport[], incoming: VetReport[]): VetReport[] {
-  const merged = [...existing];
-  for (const report of incoming) {
-    const index = merged.findIndex(r => r.id === report.id);
-    if (index >= 0) {
-      merged[index] = report;
-    } else {
-      merged.push(report);
-    }
-  }
-  return merged;
+  return { reports, alerts, missingReports, alertCount, missingCount, isConnected, isLoading, isRefreshing, error, refresh: () => loadInitialData(true) };
 }

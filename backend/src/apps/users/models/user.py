@@ -7,6 +7,12 @@ class UserRole(models.TextChoices):
     VETERINARIAN = 'VETERINARIAN', 'Veterinarian'
     OWNER = 'OWNER', 'Owner'
 
+class IdentificationType(models.TextChoices):
+    CC = 'CC', 'Cédula de Ciudadanía'
+    CE = 'CE', 'Cédula de Extranjería'
+    PA = 'PA', 'Pasaporte'
+    PEP = 'PEP', 'Permiso Especial'
+
 class UserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
         if not email:
@@ -28,6 +34,13 @@ class User(AbstractBaseUser, PermissionsMixin, AuditableModel):
     firebase_uid = models.CharField(max_length=128, blank=True, null=True, unique=True)
     full_name = models.CharField(max_length=255)
     email = models.EmailField(unique=True)
+    identification_type = models.CharField(
+        max_length=3,
+        choices=IdentificationType.choices,
+        blank=True,
+        null=True,
+        help_text="Tipo de documento de identificación"
+    )
     identification_number = models.CharField(max_length=50, unique=True, blank=True, null=True)
     
     phone_number = models.CharField(max_length=50, blank=True, null=True)
@@ -66,6 +79,11 @@ class User(AbstractBaseUser, PermissionsMixin, AuditableModel):
     class Meta:
         verbose_name = 'User'
         verbose_name_plural = 'Users'
+
+    def save(self, *args, **kwargs):
+        if self.identification_number is not None and self.identification_number.strip() == '':
+            self.identification_number = None
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.full_name} ({self.role})"

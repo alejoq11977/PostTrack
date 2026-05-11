@@ -120,7 +120,7 @@ export const MainLayout = () => {
       {/* Sidebar desktop */}
       <aside className="hidden md:flex flex-col w-64 bg-white border-r border-slate-200 px-6 py-8 h-full">
         <div className="flex justify-center mb-10">
-          <Link to="/" className="border border-slate-300 px-4 py-3 rounded-xl shadow-md">
+          <Link to={isVet ? '/vet/dashboard' : '/'} className="border border-slate-300 px-4 py-3 rounded-xl shadow-md">
             <Logo className="w-40 h-auto" />
           </Link>
         </div>
@@ -166,7 +166,7 @@ export const MainLayout = () => {
 
         {/* Logo igual al desktop */}
         <div className="flex justify-center mb-10">
-          <Link to="/" onClick={() => setMenuOpen(false)} className="border border-slate-300 px-4 py-3 rounded-xl shadow-md">
+          <Link to={isVet ? '/vet/dashboard' : '/'} onClick={() => setMenuOpen(false)} className="border border-slate-300 px-4 py-3 rounded-xl shadow-md">
             <Logo className="w-40 h-auto" />
           </Link>
         </div>
@@ -211,7 +211,7 @@ export const MainLayout = () => {
 
           {/* Logo centrado igual al sidebar */}
           <div className="absolute left-1/2 -translate-x-1/2">
-            <Link to="/" className="border border-slate-300 px-3 py-2 rounded-xl shadow-md block">
+            <Link to={isVet ? '/vet/dashboard' : '/'} className="border border-slate-300 px-3 py-2 rounded-xl shadow-md block">
               <Logo className="w-28 h-auto" />
             </Link>
           </div>

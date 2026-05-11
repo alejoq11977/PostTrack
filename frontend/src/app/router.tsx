@@ -13,6 +13,7 @@ import { ClinicSelector } from '@/features/clinics/components/ClinicSelector';
 import { PolicyPage } from '@/pages/auth/PolicyPage';
 import { AuthorizationPage } from '@/pages/auth/AuthorizationPage';
 import { AlertsPage } from '@/pages/vet/AlertsPage';
+import { ForgotPasswordPage } from '@/pages/auth/ForgotPasswordPage';
 import { FormResultPage } from '@/pages/owner/FormResultPage';
 import { VetDashboardPage } from '@/pages/vet/VetDashboardPage';
 import { VetReportsPage } from '@/pages/vet/VetReportsPage';
@@ -24,6 +25,10 @@ export const router = createBrowserRouter([
   {
     path: '/login',
     element: <Login />,
+  },
+  {
+    path: '/forgot-password',
+    element: <ForgotPasswordPage />,
   },
   {
     element: <ProtectedRoute />,

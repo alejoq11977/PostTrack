@@ -110,7 +110,7 @@ class VetOwnerSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'id', 'full_name', 'email', 'identification_number',
+            'id', 'full_name', 'email', 'identification_type', 'identification_number',
             'phone_number', 'address', 'patients_count', 'patients', 'created_at'
         ]
 
@@ -143,27 +143,86 @@ class VetOwnerSerializer(serializers.ModelSerializer):
 
 
 class VetOwnerCreateSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, required=True)
-    confirm_password = serializers.CharField(write_only=True, required=False)
+    password = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    confirm_password = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    identification_type = serializers.ChoiceField(
+        choices=['CC', 'CE', 'PA', 'PEP'],
+        required=True,
+        write_only=True
+    )
 
     class Meta:
         model = User
         fields = [
-            'full_name', 'email', 'password', 'confirm_password',
+            'id', 'full_name', 'email', 'identification_type', 'password', 'confirm_password',
             'identification_number', 'phone_number', 'address'
         ]
+        read_only_fields = ['id']
+
+    def validate_password(self, value):
+        if not value or value.strip() == '':
+            return None
+
+        errors = []
+        if len(value) < 8:
+            errors.append('La contraseña debe tener al menos 8 caracteres.')
+        if not re.search(r'\d', value):
+            errors.append('La contraseña debe contener al menos un número.')
+        if not re.search(r'[!@#$%^&*(),.?":{}|<>]', value):
+            errors.append('La contraseña debe contener al menos un carácter especial (ej: !@#$%^&*).')
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        return value
 
     def validate(self, attrs):
-        if 'confirm_password' in attrs and attrs['password'] != attrs['confirm_password']:
-            raise serializers.ValidationError({'confirm_password': 'Las contraseñas no coinciden'})
+        password = attrs.get('password')
+        confirm_password = attrs.pop('confirm_password', None)
+        identification_type = attrs.get('identification_type')
+
+        if password and confirm_password and password != confirm_password:
+            raise serializers.ValidationError({'confirm_password': 'Las contraseñas no coinciden.'})
+
+        identification_number = attrs.get('identification_number')
+        if not identification_number or identification_number.strip() == '':
+            raise serializers.ValidationError({'identification_number': 'El número de identificación es obligatorio.'})
+
         return attrs
 
     def create(self, validated_data):
-        validated_data.pop('confirm_password', None)
-        password = validated_data.pop('password')
+        import re
+        from firebase_admin import auth as firebase_auth
+
+        identification_type = validated_data.pop('identification_type')
+        password = validated_data.pop('password', None)
+        confirm_password = validated_data.pop('confirm_password', None)
+
+        identification_number = validated_data.get('identification_number')
+        if identification_number is None or identification_number.strip() == '':
+            validated_data.pop('identification_number', None)
+
+        final_password = password.strip() if password and password.strip() else f'.{identification_number}@'
+
+        firebase_uid = None
+        try:
+            firebase_user = firebase_auth.create_user(
+                email=validated_data['email'],
+                password=final_password,
+                display_name=validated_data.get('full_name', ''),
+            )
+            firebase_uid = firebase_user.uid
+        except firebase_auth.EmailAlreadyExistsError:
+            existing_user = firebase_auth.get_user_by_email(validated_data['email'])
+            firebase_uid = existing_user.uid
+            firebase_auth.update_user(existing_user.uid, password=final_password)
+
         user = User(**validated_data)
-        user.set_password(password)
+        user.set_password(final_password)
         user.role = 'OWNER'
+        user.managed_by = self.context['request'].user
+        user.firebase_uid = firebase_uid
+        user.identification_type = identification_type
         user.save()
         return user
 
@@ -183,7 +242,9 @@ class VetPatientSerializer(serializers.ModelSerializer):
 
 
 class VetPatientCreateSerializer(serializers.ModelSerializer):
-    owner_id = serializers.IntegerField(write_only=True, required=False)
+    owner_id = serializers.IntegerField(write_only=True, required=True)
+    breed = serializers.CharField(required=False, allow_blank=True, default='')
+    birth_date = serializers.DateField(required=False, allow_null=True)
 
     class Meta:
         model = Patient
@@ -191,32 +252,31 @@ class VetPatientCreateSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         owner_id = attrs.get('owner_id')
-        if owner_id:
-            clinic_ids = self.context.get('clinic_ids', [])
-            if not clinic_ids:
+        clinic_ids = self.context.get('clinic_ids', [])
+        if not clinic_ids:
+            raise serializers.ValidationError(
+                {'clinic': 'No clinic access. Cannot create patient.'}
+            )
+
+        try:
+            owner = User.objects.get(id=owner_id, role='OWNER')
+        except User.DoesNotExist:
+            raise serializers.ValidationError(
+                {'owner_id': 'Owner not found or invalid role.'}
+            )
+
+        has_patients_in_clinic = Patient.objects.filter(
+            owner=owner,
+            clinic_id__in=clinic_ids,
+            is_active=True
+        ).exists()
+
+        if not has_patients_in_clinic:
+            existing_patients = Patient.objects.filter(owner=owner, is_active=True).count()
+            if existing_patients > 0:
                 raise serializers.ValidationError(
-                    {'clinic': 'No clinic access. Cannot create patient.'}
+                    {'owner_id': 'This owner has patients in other clinics. Owner must have existing patients in this clinic to add more.'}
                 )
-
-            try:
-                owner = User.objects.get(id=owner_id, role='OWNER')
-            except User.DoesNotExist:
-                raise serializers.ValidationError(
-                    {'owner_id': 'Owner not found or invalid role.'}
-                )
-
-            has_patients_in_clinic = Patient.objects.filter(
-                owner=owner,
-                clinic_id__in=clinic_ids,
-                is_active=True
-            ).exists()
-
-            if not has_patients_in_clinic:
-                existing_patients = Patient.objects.filter(owner=owner, is_active=True).count()
-                if existing_patients > 0:
-                    raise serializers.ValidationError(
-                        {'owner_id': 'This owner has patients in other clinics. Owner must have existing patients in this clinic to add more.'}
-                    )
 
         return attrs
 
@@ -225,23 +285,35 @@ class VetPatientCreateSerializer(serializers.ModelSerializer):
         owner_id = validated_data.pop('owner_id', None)
         clinic_ids = self.context.get('clinic_ids', [])
 
+        if not clinic_ids:
+            raise serializers.ValidationError(
+                {'clinic': 'No clinic access. Cannot create patient.'}
+            )
+
+        vet_clinic = VetClinic.objects.filter(
+            veterinarian=self.context['request'].user,
+            is_active=True,
+            clinic_id__in=clinic_ids
+        ).first()
+
+        if not vet_clinic:
+            raise serializers.ValidationError(
+                {'clinic': 'You do not have access to any clinic.'}
+            )
+
+        clinic = vet_clinic.clinic
+
+        birth_date = validated_data.get('birth_date')
+        if birth_date is None or birth_date == '':
+            validated_data.pop('birth_date', None)
+
         if owner_id:
             owner = User.objects.get(id=owner_id)
-            vet_clinic = VetClinic.objects.filter(
-                veterinarian=self.context['request'].user,
-                is_active=True,
-                clinic_id__in=clinic_ids
-            ).first()
-
-            if not vet_clinic:
-                raise serializers.ValidationError(
-                    {'clinic': 'You do not have access to any clinic.'}
-                )
-
-            clinic = vet_clinic.clinic
             return Patient.objects.create(owner=owner, clinic=clinic, **validated_data)
 
-        return Patient.objects.create(**validated_data)
+        raise serializers.ValidationError(
+            {'owner_id': 'Owner is required to create a patient.'}
+        )
 
 
 class VetPatientUpdateSerializer(serializers.ModelSerializer):
@@ -261,13 +333,16 @@ class VetPatientUpdateSerializer(serializers.ModelSerializer):
 class VetMonitoringSerializer(serializers.ModelSerializer):
     patient_name = serializers.CharField(source='patient.name', read_only=True)
     owner_name = serializers.CharField(source='patient.owner.full_name', read_only=True)
+    owner_email = serializers.EmailField(source='patient.owner.email', read_only=True)
+    owner_identification_number = serializers.CharField(source='patient.owner.identification_number', read_only=True)
     active_reports = serializers.SerializerMethodField()
 
     class Meta:
         model = SurgicalMonitoring
         fields = [
             'id', 'surgery_type', 'surgery_date', 'report_frequency_hours',
-            'status', 'patient_name', 'owner_name', 'active_reports'
+            'status', 'patient_name', 'owner_name', 'owner_email',
+            'owner_identification_number', 'active_reports'
         ]
 
     def get_active_reports(self, obj):

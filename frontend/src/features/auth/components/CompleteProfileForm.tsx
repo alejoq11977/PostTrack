@@ -1,6 +1,7 @@
-import { Lock, ShieldCheck, AlertCircle, ArrowRight, LogOut } from 'lucide-react';
+import { Lock, ShieldCheck, AlertCircle, ArrowRight, LogOut, Eye, EyeOff } from 'lucide-react';
 import { Input } from '@/shared/components/common/Input';
 import { cn } from '@/shared/utils/cn';
+import { useState } from 'react';
 import { useCompleteProfile } from '../hooks/useCompleteProfile';
 
 export const CompleteProfileForm = () => {
@@ -11,6 +12,15 @@ export const CompleteProfileForm = () => {
     handleSubmit, logout
   } = useCompleteProfile();
 
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const passwordRequirements = [
+    { label: '8 caracteres mínimo', met: password.length >= 8 },
+    { label: 'Al menos un número', met: /[0-9]/.test(password) },
+    { label: 'Al menos un carácter especial (ej: !@#$%^&*).', met: /[!@#$%^&*(),.?":{}|<>]/.test(password) },
+  ];
+
   return (
     <>
       {error && (
@@ -19,7 +29,7 @@ export const CompleteProfileForm = () => {
             <AlertCircle size={18} className="text-red-500 shrink-0 mt-0.5" />
             <span className="leading-relaxed">{error}</span>
           </div>
-          
+
           {isSessionExpired && (
             <button
               type="button"
@@ -33,23 +43,54 @@ export const CompleteProfileForm = () => {
       )}
 
       <form onSubmit={handleSubmit} noValidate className="space-y-4">
-      <Input
-        label="Nueva Contraseña"
-        type="password"
-        placeholder="••••••••"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        icon={<Lock />}
-      />
+        <div className="relative">
+          <Input
+            label="Nueva Contraseña"
+            type={showPassword ? 'text' : 'password'}
+            placeholder="••••••••"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            icon={<Lock />}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-[38px] text-slate-400 hover:text-slate-600 transition-colors"
+          >
+            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        </div>
 
-      <Input
-        label="Confirmar Nueva Contraseña"
-        type="password"
-        placeholder="••••••••"
-        value={confirmPassword}
-        onChange={(e) => setConfirmPassword(e.target.value)}
-        icon={<ShieldCheck />}
-      />
+        {password.length > 0 && (
+          <div className="flex flex-col gap-1.5 mb-2">
+            {passwordRequirements.map((req, i) => (
+              <div key={i} className="flex items-center gap-2 text-xs">
+                <div className={`w-4 h-4 rounded-full flex items-center justify-center ${req.met ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                  {req.met ? '✓' : '·'}
+                </div>
+                <span className={req.met ? 'text-emerald-600' : 'text-slate-500'}>{req.label}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="relative">
+          <Input
+            label="Confirmar Nueva Contraseña"
+            type={showConfirm ? 'text' : 'password'}
+            placeholder="••••••••"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            icon={<ShieldCheck />}
+          />
+          <button
+            type="button"
+            onClick={() => setShowConfirm(!showConfirm)}
+            className="absolute right-3 top-[38px] text-slate-400 hover:text-slate-600 transition-colors"
+          >
+            {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        </div>
 
       <button
         type="submit"

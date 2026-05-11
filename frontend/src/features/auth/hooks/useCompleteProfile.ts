@@ -13,13 +13,27 @@ export const useCompleteProfile = () => {
 
   const { logout } = useAuth();
 
+  const validatePassword = (pwd: string): string | null => {
+    if (pwd.length < 8) {
+      return 'La contraseña debe tener al menos 8 caracteres.';
+    }
+    if (!/[0-9]/.test(pwd)) {
+      return 'La contraseña debe contenir al menos un número.';
+    }
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(pwd)) {
+      return 'La contraseña debe contener al menos un carácter especial (ej: !@#$%^&*).';
+    }
+    return null;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsSessionExpired(false);
 
-    if (password.length < 6) {
-      return setError('La nueva contraseña debe tener al menos 6 caracteres.');
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      return setError(passwordError);
     }
     if (password !== confirmPassword) {
       return setError('Las contraseñas no coinciden.');

@@ -20,6 +20,7 @@ export interface VetEvidence {
 
 export interface VetReport {
   id: number;
+  monitoring_id: number;
   submitted_at: string;
   calculated_risk: 'LOW' | 'MEDIUM' | 'HIGH' | null;
   validated_risk: string | null;
@@ -47,10 +48,18 @@ export interface VetReport {
   };
 }
 
+export interface PaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
 export interface VetOwner {
   id: number;
   full_name: string;
   email: string;
+  identification_type: string | null;
   identification_number: string | null;
   phone_number: string | null;
   address: string | null;
@@ -81,6 +90,8 @@ export interface VetMonitoring {
   status: string;
   patient_name: string;
   owner_name: string;
+  owner_email: string;
+  owner_identification_number: string;
   active_reports: number;
 }
 
@@ -91,6 +102,7 @@ export interface MissingReport {
   owner_name: string;
   owner_phone: string | null;
   owner_email: string | null;
+  owner_identification_number?: string;
   surgery_type: string;
   surgery_date: string;
   day_number: number;
@@ -101,9 +113,27 @@ export interface MissingReport {
 }
 
 export const vetService = {
-  getReports: async (filter?: 'pending' | 'reviewed' | 'all'): Promise<VetReport[]> => {
-    const params = filter ? `?filter=${filter}` : '';
-    const response = await apiClient.get<VetReport[]>(`/vet/reports/${params}`);
+  getReports: async (
+    filter?: 'pending' | 'reviewed' | 'all',
+    monitoringId?: number,
+    limit?: number,
+    offset?: number
+  ): Promise<PaginatedResponse<VetReport>> => {
+    const params = new URLSearchParams();
+    if (filter) params.append('filter', filter);
+    if (monitoringId) params.append('monitoring', monitoringId.toString());
+    if (limit) params.append('limit', limit.toString());
+    if (offset) params.append('offset', offset.toString());
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+    const response = await apiClient.get(`/vet/reports/${queryString}`);
+    return response.data;
+  },
+
+  getAlerts: async (page?: number, limit?: number): Promise<PaginatedResponse<VetReport>> => {
+    const params = new URLSearchParams();
+    if (page) params.append('page', page.toString());
+    if (limit) params.append('limit', limit.toString());
+    const response = await apiClient.get(`/vet/alerts/all/?${params.toString()}`);
     return response.data;
   },
 
@@ -134,9 +164,10 @@ export const vetService = {
   createOwner: async (data: {
     full_name: string;
     email: string;
-    password: string;
-    confirm_password: string;
-    identification_number?: string;
+    identification_type: string;
+    password?: string;
+    confirm_password?: string;
+    identification_number: string;
     phone_number?: string;
     address?: string;
   }): Promise<VetOwner> => {
@@ -195,9 +226,13 @@ export const vetService = {
     return response.data;
   },
 
-  getMissingReports: async (): Promise<MissingReport[]> => {
-    const response = await apiClient.get<{ count: number; results: MissingReport[] }>('/vet/reports/missing/');
-    return response.data.results;
+  getMissingReports: async (limit?: number, offset?: number): Promise<PaginatedResponse<MissingReport>> => {
+    const params = new URLSearchParams();
+    if (limit) params.append('limit', limit.toString());
+    if (offset) params.append('offset', offset.toString());
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+    const response = await apiClient.get<{ count: number; next: string | null; previous: string | null; results: MissingReport[] }>(`/vet/reports/missing/${queryString}`);
+    return response.data;
   },
 
   getStats: async (): Promise<{ pending: number; reviewed_today: number; total_active: number; high_risk: number }> => {

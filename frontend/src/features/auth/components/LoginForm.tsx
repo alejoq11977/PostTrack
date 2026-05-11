@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { Mail, Lock, AlertCircle, ArrowRight, Info } from 'lucide-react';
 import { Input } from '@/shared/components/common/Input';
 import { cn } from '@/shared/utils/cn';
@@ -37,9 +38,9 @@ export const LoginForm = () => {
         />
 
         <div className="flex justify-end -mt-1 mb-6">
-          <a href="#" className="text-[12.5px] text-brand-500 font-medium hover:text-brand-600 hover:underline transition-colors">
+          <Link to="/forgot-password" className="text-[12.5px] text-brand-500 font-medium hover:text-brand-600 hover:underline transition-colors">
             ¿Olvidó su contraseña?
-          </a>
+          </Link>
         </div>
 
         <button

@@ -7,6 +7,7 @@ interface OwnerFormData {
   email: string;
   password: string;
   confirm_password: string;
+  identification_type: string;
   identification_number: string;
   phone_number: string;
   address: string;
@@ -41,9 +42,47 @@ const initialOwnerForm: OwnerFormData = {
   email: '',
   password: '',
   confirm_password: '',
+  identification_type: '',
   identification_number: '',
   phone_number: '',
   address: '',
+};
+
+const DOCUMENT_TYPES = [
+  { value: 'CC', label: 'Cédula de Ciudadanía (CC)' },
+  { value: 'CE', label: 'Cédula de Extranjería (CE)' },
+  { value: 'PA', label: 'Pasaporte (PA)' },
+  { value: 'PEP', label: 'Permiso Especial (PEP)' },
+];
+
+const COMMON_EMAIL_DOMAINS: Record<string, string[]> = {
+  'gmail.com': ['gmail.coom', 'gmail.cm', 'gmailc.om', 'gmal.com', 'gmail.con', 'gmail.comm', 'gmil.com', 'gnail.com'],
+  'yahoo.com': ['yahoo.coom', 'yahoo.cm', 'yahoo.con', 'yaho.com', 'yahooo.com'],
+  'hotmail.com': ['hotmail.coom', 'hotmail.cm', 'hotmail.con', 'hotmal.com', 'hotmil.com'],
+  'outlook.com': ['outlook.coom', 'outlook.cm', 'outlook.con', 'outlok.com', 'outllok.com'],
+  'icloud.com': ['icloud.coom', 'icloud.cm', 'iclould.com', 'icold.com'],
+};
+
+const getEmailTypoWarning = (email: string): string | null => {
+  if (!email || !email.includes('@')) return null;
+  const [, domain] = email.split('@');
+  if (!domain) return null;
+  const domainLower = domain.toLowerCase();
+  for (const [correct, typos] of Object.entries(COMMON_EMAIL_DOMAINS)) {
+    if (typos.includes(domainLower)) {
+      return `¿Quisiste decir ${correct}?`;
+    }
+  }
+  return null;
+};
+
+const getPasswordErrors = (pwd: string): string[] => {
+  if (!pwd) return [];
+  const errors = [];
+  if (pwd.length > 0 && pwd.length < 8) errors.push('Mínimo 8 caracteres');
+  if (pwd.length > 0 && !/\d/.test(pwd)) errors.push('Al menos un número');
+  if (pwd.length > 0 && !/[!@#$%^&*(),.?":{}|<>]/.test(pwd)) errors.push('Al menos un carácter especial (!@#$%^&*)');
+  return errors;
 };
 
 export const VetUsersPage = () => {
@@ -60,6 +99,8 @@ export const VetUsersPage = () => {
   const [isSaving, setIsSaving] = useState(false);
 
   const isViewMode = editingOwnerId !== null && !isEditing;
+  const passwordErrors = getPasswordErrors(ownerForm.password);
+  const emailTypoWarning = getEmailTypoWarning(ownerForm.email);
 
   useEffect(() => {
     document.title = 'Propietarios - PostTrack';
@@ -116,6 +157,7 @@ export const VetUsersPage = () => {
       email: owner.email,
       password: '',
       confirm_password: '',
+      identification_type: owner.identification_type || '',
       identification_number: owner.identification_number || '',
       phone_number: owner.phone_number || '',
       address: owner.address || '',
@@ -147,6 +189,7 @@ export const VetUsersPage = () => {
         email: owner.email,
         password: '',
         confirm_password: '',
+        identification_type: owner.identification_type || '',
         identification_number: owner.identification_number || '',
         phone_number: owner.phone_number || '',
         address: owner.address || '',
@@ -170,7 +213,7 @@ export const VetUsersPage = () => {
       setIsEditing(false);
       setEditingOwnerId(null);
       setOwnerForm(initialOwnerForm);
-      setPets([]);
+      setPets([createEmptyPet()]);
     }
     setShowModal(true);
   };
@@ -189,13 +232,23 @@ export const VetUsersPage = () => {
 
   const uploadPetPhoto = async (file: File): Promise<string | null> => {
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('image', file);
+    formData.append('name', file.name);
     try {
-      const response = await fetch('https://api.imgbb.com/1/upload?key=YOUR_IMGBB_API_KEY', {
+      const apiKey = import.meta.env.VITE_IMGBB_API_KEY;
+      if (!apiKey) {
+        console.error('IMGBB API key not configured');
+        return null;
+      }
+      const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
         method: 'POST',
         body: formData,
       });
       const data = await response.json();
+      if (!response.ok) {
+        console.error('ImgBB upload failed:', data);
+        return null;
+      }
       return data.data?.url || null;
     } catch (err) {
       console.error('Error uploading photo:', err);
@@ -204,15 +257,33 @@ export const VetUsersPage = () => {
   };
 
   const handleSave = async () => {
-    if (!ownerForm.full_name || !ownerForm.email) return;
+    if (!ownerForm.full_name || !ownerForm.email) {
+      alert('Complete todos los campos obligatorios');
+      return;
+    }
 
-    if (!isEditing && (!ownerForm.password || !ownerForm.confirm_password)) {
-      alert('La contraseña es obligatoria para nuevos propietarios');
+    const typoWarning = getEmailTypoWarning(ownerForm.email);
+    if (typoWarning && !window.confirm(`El email "${ownerForm.email}" parece tener un error. ¿Estás seguro de que es correcto?`)) {
+      return;
+    }
+
+    if (!ownerForm.identification_type || !ownerForm.identification_number) {
+      alert('Seleccione el tipo de documento e ingrese el número de identificación');
+      return;
+    }
+
+    if (passwordErrors.length > 0) {
+      alert('La contraseña no cumple con los requisitos:\n' + passwordErrors.join('\n'));
       return;
     }
 
     if (ownerForm.password && ownerForm.password !== ownerForm.confirm_password) {
       alert('Las contraseñas no coinciden');
+      return;
+    }
+
+    if (!editingOwnerId && pets.length === 0) {
+      alert('Debes añadir al menos una mascota al crear un nuevo propietario');
       return;
     }
 
@@ -263,8 +334,9 @@ export const VetUsersPage = () => {
         const owner = await vetService.createOwner({
           full_name: ownerForm.full_name,
           email: ownerForm.email,
-          password: ownerForm.password,
-          confirm_password: ownerForm.confirm_password,
+          identification_type: ownerForm.identification_type,
+          password: ownerForm.password || '',
+          confirm_password: ownerForm.confirm_password || '',
           identification_number: ownerForm.identification_number,
           phone_number: ownerForm.phone_number,
           address: ownerForm.address,
@@ -311,6 +383,7 @@ export const VetUsersPage = () => {
             email: updatedOwner.email,
             password: '',
             confirm_password: '',
+            identification_type: updatedOwner.identification_type || '',
             identification_number: updatedOwner.identification_number || '',
             phone_number: updatedOwner.phone_number || '',
             address: updatedOwner.address || '',
@@ -336,7 +409,12 @@ export const VetUsersPage = () => {
       }
     } catch (err: any) {
       console.error('Error saving owner:', err);
-      const errorMsg = err?.response?.data?.email?.[0] || err?.response?.data?.detail || 'Error al guardar';
+      const errors = err?.response?.data;
+      let errorMsg = 'Error al guardar';
+      if (errors) {
+        const messages = Object.values(errors).flat().join('\n');
+        if (messages) errorMsg = messages;
+      }
       alert(errorMsg);
     } finally {
       setIsSaving(false);
@@ -382,7 +460,7 @@ export const VetUsersPage = () => {
           <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder={searchType === 'owner' ? "Buscar por nombre, email, cédula..." : "Buscar por nombre de mascota..."}
+            placeholder={searchType === 'owner' ? "Buscar por nombre, email, número de identificación..." : "Buscar por nombre de mascota..."}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-white"
@@ -492,7 +570,9 @@ export const VetUsersPage = () => {
                   </div>
                   <p className="text-sm text-slate-500">{owner.email}</p>
                   {owner.identification_number && (
-                    <p className="text-xs text-slate-400 mt-0.5">C.C. {owner.identification_number}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      {owner.identification_type} {owner.identification_number}
+                    </p>
                   )}
                 </div>
                 <div className="flex items-center gap-2">
@@ -550,7 +630,6 @@ export const VetUsersPage = () => {
                       onChange={(e) => setOwnerForm({ ...ownerForm, full_name: e.target.value })}
                       disabled={isViewMode}
                       className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-slate-50/50 transition-all disabled:bg-slate-100 disabled:text-slate-600"
-                     
                     />
                   </div>
 
@@ -562,43 +641,76 @@ export const VetUsersPage = () => {
                       onChange={(e) => setOwnerForm({ ...ownerForm, email: e.target.value })}
                       disabled={isViewMode}
                       className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-slate-50/50 transition-all disabled:bg-slate-100 disabled:text-slate-600"
-                     
                     />
+                    {emailTypoWarning && (
+                      <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                        <span>⚠️</span> {emailTypoWarning}
+                      </p>
+                    )}
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1.5">Cédula</label>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">Tipo de Documento *</label>
+                    <select
+                      value={ownerForm.identification_type}
+                      onChange={(e) => setOwnerForm({ ...ownerForm, identification_type: e.target.value })}
+                      disabled={isViewMode}
+                      className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-slate-50/50 transition-all disabled:bg-slate-100 disabled:text-slate-600"
+                    >
+                      <option value="">Seleccionar</option>
+                      {DOCUMENT_TYPES.map(type => (
+                        <option key={type.value} value={type.value}>{type.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">Número de Identificación *</label>
                     <input
                       type="text"
                       value={ownerForm.identification_number}
                       onChange={(e) => setOwnerForm({ ...ownerForm, identification_number: e.target.value })}
                       disabled={isViewMode}
                       className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-slate-50/50 transition-all disabled:bg-slate-100 disabled:text-slate-600"
-                     
                     />
                   </div>
 
                   {!editingOwnerId && (
                     <>
                       <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1.5">Contraseña *</label>
+                        <label className="block text-xs font-medium text-slate-600 mb-1.5">Contraseña</label>
                         <input
                           type="password"
                           value={ownerForm.password}
                           onChange={(e) => setOwnerForm({ ...ownerForm, password: e.target.value })}
                           className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-slate-50/50 transition-all"
-                        
                         />
+                        <p className="text-xs text-slate-400 mt-1">
+                          Si se deja vacía, la contraseña será ".{ownerForm.identification_number || '12345678'}@"
+                        </p>
+                        {passwordErrors.length > 0 && (
+                          <div className="mt-1.5 space-y-0.5">
+                            {passwordErrors.map((err, i) => (
+                              <p key={i} className="text-xs text-red-600 flex items-center gap-1">
+                                <span>●</span> {err}
+                              </p>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1.5">Confirmar *</label>
+                        <label className="block text-xs font-medium text-slate-600 mb-1.5">Confirmar Contraseña</label>
                         <input
                           type="password"
                           value={ownerForm.confirm_password}
                           onChange={(e) => setOwnerForm({ ...ownerForm, confirm_password: e.target.value })}
                           className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-slate-50/50 transition-all"
-                        
                         />
+                        {ownerForm.confirm_password && ownerForm.password !== ownerForm.confirm_password && (
+                          <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                            <span>●</span> Las contraseñas no coinciden
+                          </p>
+                        )}
                       </div>
                     </>
                   )}
@@ -614,8 +726,16 @@ export const VetUsersPage = () => {
                             value={ownerForm.password}
                             onChange={(e) => setOwnerForm({ ...ownerForm, password: e.target.value })}
                             className="w-full px-3 py-2 border border-amber-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-                           
                           />
+                          {passwordErrors.length > 0 && (
+                            <div className="mt-1 space-y-0.5">
+                              {passwordErrors.map((err, i) => (
+                                <p key={i} className="text-xs text-red-600 flex items-center gap-1">
+                                  <span>●</span> {err}
+                                </p>
+                              ))}
+                            </div>
+                          )}
                         </div>
                         <div>
                           <label className="block text-xs font-medium text-amber-700 mb-1">Confirmar</label>
@@ -624,7 +744,6 @@ export const VetUsersPage = () => {
                             value={ownerForm.confirm_password}
                             onChange={(e) => setOwnerForm({ ...ownerForm, confirm_password: e.target.value })}
                             className="w-full px-3 py-2 border border-amber-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-                           
                           />
                         </div>
                       </div>
@@ -639,7 +758,6 @@ export const VetUsersPage = () => {
                       onChange={(e) => setOwnerForm({ ...ownerForm, phone_number: e.target.value })}
                       disabled={isViewMode}
                       className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-slate-50/50 transition-all disabled:bg-slate-100 disabled:text-slate-600"
-                     
                     />
                   </div>
 
@@ -651,7 +769,6 @@ export const VetUsersPage = () => {
                       onChange={(e) => setOwnerForm({ ...ownerForm, address: e.target.value })}
                       disabled={isViewMode}
                       className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-slate-50/50 transition-all disabled:bg-slate-100 disabled:text-slate-600"
-                     
                     />
                   </div>
                 </div>
