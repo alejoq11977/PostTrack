@@ -1,9 +1,10 @@
+from django.db import models
 from django.utils import timezone
-from rest_framework import generics, status
+from rest_framework import generics, status, viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
-from django.http import StreamingHttpResponse
+from django.http import StreamingHttpResponse, JsonResponse
 import json
 import time
 
@@ -11,11 +12,27 @@ from apps.monitoring.models import Report, SurgicalMonitoring
 from apps.monitoring.serializers.monitoring import ReportHistorySerializer
 from apps.patients.models import Patient
 from apps.users.models import User
-from apps.vet.serializers import VetReportSerializer, VetReportDetailSerializer, VetOwnerSerializer, VetOwnerCreateSerializer, VetPatientSerializer, VetPatientCreateSerializer, VetMonitoringSerializer, VetMonitoringCreateSerializer
+from apps.vet.serializers import VetReportSerializer, VetReportDetailSerializer, VetOwnerSerializer, VetOwnerCreateSerializer, VetPatientSerializer, VetPatientCreateSerializer, VetPatientUpdateSerializer, VetMonitoringSerializer, VetMonitoringCreateSerializer
 from apps.clinics.models import VetClinic
 
 
-class VetReportsListView(generics.ListAPIView):
+class ClinicFilteredMixin:
+    """Mixin that provides clinic filtering for all vet views."""
+
+    def get_clinic_ids(self):
+        if not hasattr(self, '_clinic_ids'):
+            self._clinic_ids = list(VetClinic.objects.filter(
+                veterinarian=self.request.user, is_active=True
+            ).values_list('clinic_id', flat=True))
+        return self._clinic_ids
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['clinic_ids'] = self.get_clinic_ids()
+        return context
+
+
+class VetReportsListView(ClinicFilteredMixin, generics.ListAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_serializer_class(self):
@@ -157,9 +174,22 @@ class VetOwnersListView(generics.ListCreateAPIView):
 
         search = self.request.query_params.get('search', '')
         if search:
-            queryset = queryset.filter(full_name__icontains=search)
+            queryset = queryset.filter(
+                models.Q(full_name__icontains=search) |
+                models.Q(email__icontains=search) |
+                models.Q(identification_number__icontains=search)
+            )
 
         return queryset
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        user = self.request.user
+        clinic_ids = list(VetClinic.objects.filter(
+            veterinarian=user, is_active=True
+        ).values_list('clinic_id', flat=True))
+        context['clinic_ids'] = clinic_ids
+        return context
 
     def perform_create(self, serializer):
         serializer.save(role='OWNER')
@@ -177,6 +207,15 @@ class VetOwnerDetailView(generics.RetrieveUpdateAPIView):
             role='OWNER',
             patients__clinic_id__in=clinic_ids
         ).distinct()
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        user = self.request.user
+        clinic_ids = list(VetClinic.objects.filter(
+            veterinarian=user, is_active=True
+        ).values_list('clinic_id', flat=True))
+        context['clinic_ids'] = clinic_ids
+        return context
 
 
 class VetPatientsSearchView(generics.ListAPIView):
@@ -196,7 +235,7 @@ class VetPatientsSearchView(generics.ListAPIView):
         return queryset.order_by('name')[:20]
 
 
-class VetPatientsCreateView(generics.CreateAPIView):
+class VetPatientsCreateView(ClinicFilteredMixin, generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = VetPatientCreateSerializer
 
@@ -209,6 +248,17 @@ class VetPatientsCreateView(generics.CreateAPIView):
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+
+class VetPatientsUpdateView(ClinicFilteredMixin, generics.UpdateAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = VetPatientUpdateSerializer
+    lookup_field = 'pk'
+
+    def get_queryset(self):
+        user = self.request.user
+        clinic_ids = VetClinic.objects.filter(veterinarian=user, is_active=True).values_list('clinic_id', flat=True)
+        return Patient.objects.filter(clinic_id__in=clinic_ids, is_active=True)
 
 
 class VetMonitoringsListView(generics.ListCreateAPIView):
@@ -286,35 +336,38 @@ def vet_sse_alerts(request):
 
         risk_order = {'HIGH': 0, 'MEDIUM': 1, 'LOW': 2, None: 3}
 
+        def get_reports_data():
+            pending_reports = Report.objects.filter(
+                monitoring__patient__clinic_id__in=clinic_ids,
+                review_status='PENDING'
+            ).select_related(
+                'monitoring',
+                'monitoring__patient',
+                'monitoring__patient__owner'
+            )
+
+            high_risk = pending_reports.filter(calculated_risk='HIGH')
+            medium_risk = pending_reports.filter(calculated_risk='MEDIUM')
+            low_risk = pending_reports.filter(calculated_risk='LOW')
+            no_risk = pending_reports.filter(calculated_risk__isnull=True)
+
+            sorted_reports = list(high_risk) + list(medium_risk) + list(low_risk) + list(no_risk)
+
+            return {
+                'type': 'reports_update',
+                'count': pending_reports.count(),
+                'alert_count': high_risk.count(),
+                'alerts': VetReportSerializer(sorted_reports[:10], many=True).data,
+                'reports': VetReportSerializer(pending_reports.order_by('-submitted_at')[:20], many=True).data
+            }
+
+        yield f"data: {json.dumps(get_reports_data())}\n\n"
+
         while True:
             try:
                 time.sleep(5)
 
-                pending_reports = Report.objects.filter(
-                    monitoring__patient__clinic_id__in=clinic_ids,
-                    review_status='PENDING'
-                ).select_related(
-                    'monitoring',
-                    'monitoring__patient',
-                    'monitoring__patient__owner'
-                )
-
-                high_risk = pending_reports.filter(calculated_risk='HIGH')
-                medium_risk = pending_reports.filter(calculated_risk='MEDIUM')
-                low_risk = pending_reports.filter(calculated_risk='LOW')
-                no_risk = pending_reports.filter(calculated_risk__isnull=True)
-
-                sorted_reports = list(high_risk) + list(medium_risk) + list(low_risk) + list(no_risk)
-
-                data = {
-                    'type': 'reports_update',
-                    'count': pending_reports.count(),
-                    'alert_count': high_risk.count(),
-                    'alerts': VetReportSerializer(sorted_reports[:10], many=True).data,
-                    'reports': VetReportSerializer(pending_reports.order_by('-submitted_at')[:20], many=True).data
-                }
-
-                yield f"data: {json.dumps(data)}\n\n"
+                yield f"data: {json.dumps(get_reports_data())}\n\n"
             except GeneratorExit:
                 break
 

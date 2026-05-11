@@ -114,11 +114,20 @@ class VetOwnerSerializer(serializers.ModelSerializer):
             'phone_number', 'address', 'patients_count', 'patients', 'created_at'
         ]
 
+    def get_clinic_ids(self):
+        return self.context.get('clinic_ids', [])
+
     def get_patients_count(self, obj):
-        return obj.patients.filter(is_active=True).count()
+        clinic_ids = self.get_clinic_ids()
+        if not clinic_ids:
+            return 0
+        return obj.patients.filter(clinic_id__in=clinic_ids, is_active=True).count()
 
     def get_patients(self, obj):
-        patients = obj.patients.filter(is_active=True)
+        clinic_ids = self.get_clinic_ids()
+        if not clinic_ids:
+            return []
+        patients = obj.patients.filter(clinic_id__in=clinic_ids, is_active=True)
         return [
             {
                 'id': p.id,
@@ -180,17 +189,73 @@ class VetPatientCreateSerializer(serializers.ModelSerializer):
         model = Patient
         fields = ['name', 'species', 'breed', 'birth_date', 'current_weight', 'photo_url', 'owner_id']
 
+    def validate(self, attrs):
+        owner_id = attrs.get('owner_id')
+        if owner_id:
+            clinic_ids = self.context.get('clinic_ids', [])
+            if not clinic_ids:
+                raise serializers.ValidationError(
+                    {'clinic': 'No clinic access. Cannot create patient.'}
+                )
+
+            try:
+                owner = User.objects.get(id=owner_id, role='OWNER')
+            except User.DoesNotExist:
+                raise serializers.ValidationError(
+                    {'owner_id': 'Owner not found or invalid role.'}
+                )
+
+            has_patients_in_clinic = Patient.objects.filter(
+                owner=owner,
+                clinic_id__in=clinic_ids,
+                is_active=True
+            ).exists()
+
+            if not has_patients_in_clinic:
+                existing_patients = Patient.objects.filter(owner=owner, is_active=True).count()
+                if existing_patients > 0:
+                    raise serializers.ValidationError(
+                        {'owner_id': 'This owner has patients in other clinics. Owner must have existing patients in this clinic to add more.'}
+                    )
+
+        return attrs
+
     def create(self, validated_data):
         from apps.clinics.models import VetClinic
         owner_id = validated_data.pop('owner_id', None)
-        clinic = None
+        clinic_ids = self.context.get('clinic_ids', [])
+
         if owner_id:
             owner = User.objects.get(id=owner_id)
-            vet_clinic = VetClinic.objects.filter(veterinarian=self.context['request'].user, is_active=True).first()
-            if vet_clinic:
-                clinic = vet_clinic.clinic
+            vet_clinic = VetClinic.objects.filter(
+                veterinarian=self.context['request'].user,
+                is_active=True,
+                clinic_id__in=clinic_ids
+            ).first()
+
+            if not vet_clinic:
+                raise serializers.ValidationError(
+                    {'clinic': 'You do not have access to any clinic.'}
+                )
+
+            clinic = vet_clinic.clinic
             return Patient.objects.create(owner=owner, clinic=clinic, **validated_data)
+
         return Patient.objects.create(**validated_data)
+
+
+class VetPatientUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Patient
+        fields = ['name', 'species', 'breed', 'birth_date', 'current_weight', 'photo_url']
+
+    def validate(self, attrs):
+        clinic_ids = self.context.get('clinic_ids', [])
+        if not clinic_ids:
+            raise serializers.ValidationError(
+                {'clinic': 'No clinic access. Cannot update patient.'}
+            )
+        return attrs
 
 
 class VetMonitoringSerializer(serializers.ModelSerializer):

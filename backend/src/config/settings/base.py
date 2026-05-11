@@ -54,9 +54,10 @@ MIDDLEWARE =[
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'apps.clinics.middleware.ClinicAccessMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    
+
     # Simple History Middleware for Auditing
     'simple_history.middleware.HistoryRequestMiddleware',
 ]
@@ -124,6 +125,15 @@ REST_FRAMEWORK = {
 }
 
 CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'origin',
+    'user-agent',
+    'x-clinic-id',
+]
 
 # IMGBB API Configuration
 IMGBB_API_KEY = env('IMGBB_API_KEY', default='')
