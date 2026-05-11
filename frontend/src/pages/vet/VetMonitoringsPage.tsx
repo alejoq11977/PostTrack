@@ -264,12 +264,12 @@ function CreateMonitoringModal({
         })));
       } else {
         const patients = await vetService.searchPatients(query);
-        setSearchResults(patients.map((p: { id: number; name: string; owner_name: string; owner_phone: string | null; photo_url: string | null; species: string; breed: string }) => ({
+        setSearchResults(patients.map((p) => ({
           id: p.id,
           type: 'patient' as const,
           name: p.name,
-          secondary: p.owner_name,
-          phone: p.owner_phone,
+          secondary: p.owner_name || '',
+          phone: p.owner_phone || null,
           photo_url: p.photo_url,
           species: p.species,
           breed: p.breed,

@@ -1,21 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { Users, Search, Plus, X, ChevronRight, Dog, Edit2, Upload, Trash2, Camera, UserPlus } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Users, Search, Plus, X, ChevronRight, Dog, Edit2, Trash2, Camera, UserPlus } from 'lucide-react';
 import { vetService, VetOwner, VetPatient } from '@/features/vet/api/vet.service';
-
-const PET_ICONS: Record<string, string> = {
-  canine: '🐕',
-  felin: '🐈',
-  gato: '🐈',
-  perro: '🐕',
-  default: '🐾',
-};
-
-function getPetEmoji(species: string): string {
-  const lower = species.toLowerCase();
-  if (lower.includes('felin') || lower.includes('gato')) return PET_ICONS.felin;
-  if (lower.includes('canin') || lower.includes('perro')) return PET_ICONS.canine;
-  return PET_ICONS.default;
-}
 
 interface OwnerFormData {
   full_name: string;
@@ -29,6 +14,7 @@ interface OwnerFormData {
 
 interface PetFormData {
   id: string;
+  dbId: number | null;
   name: string;
   species: string;
   breed: string;
@@ -40,6 +26,7 @@ interface PetFormData {
 
 const createEmptyPet = (): PetFormData => ({
   id: crypto.randomUUID(),
+  dbId: null,
   name: '',
   species: '',
   breed: '',
@@ -72,6 +59,8 @@ export const VetUsersPage = () => {
   const [pets, setPets] = useState<PetFormData[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
+  const isViewMode = editingOwnerId !== null && !isEditing;
+
   useEffect(() => {
     document.title = 'Propietarios - PostTrack';
   }, []);
@@ -82,8 +71,9 @@ export const VetUsersPage = () => {
       try {
         const ownersData = await vetService.getOwners();
         setOwners(ownersData);
-        if (searchType === 'patient' && search) {
-          const patientsData = await vetService.searchPatients(search);
+        if (searchType === 'patient') {
+          const patientsData = await vetService.searchPatients(search || '');
+          setPatients(patientsData);
           setPatients(patientsData);
         } else {
           setPatients([]);
@@ -98,11 +88,6 @@ export const VetUsersPage = () => {
   }, [searchType]);
 
   useEffect(() => {
-    if (!search) {
-      setPatients([]);
-      return;
-    }
-
     const timeout = setTimeout(async () => {
       if (searchType === 'patient') {
         try {
@@ -111,8 +96,11 @@ export const VetUsersPage = () => {
         } catch (err) {
           console.error('Error searching patients:', err);
         }
-      } else {
+      } else if (search) {
         const data = await vetService.getOwners(search);
+        setOwners(data);
+      } else {
+        const data = await vetService.getOwners();
         setOwners(data);
       }
     }, 300);
@@ -120,9 +108,39 @@ export const VetUsersPage = () => {
     return () => clearTimeout(timeout);
   }, [search, searchType]);
 
+  const handleViewOwner = (owner: VetOwner) => {
+    setIsEditing(false);
+    setEditingOwnerId(owner.id);
+    setOwnerForm({
+      full_name: owner.full_name,
+      email: owner.email,
+      password: '',
+      confirm_password: '',
+      identification_number: owner.identification_number || '',
+      phone_number: owner.phone_number || '',
+      address: owner.address || '',
+    });
+    if (owner.patients && owner.patients.length > 0) {
+      setPets(owner.patients.map(p => ({
+        id: crypto.randomUUID(),
+        dbId: p.id,
+        name: p.name,
+        species: p.species,
+        breed: p.breed,
+        birth_date: p.birth_date || '',
+        current_weight: p.current_weight?.toString() || '',
+        photo_url: p.photo_url || '',
+        photo_file: null,
+      })));
+    } else {
+      setPets([]);
+    }
+    setShowModal(true);
+  };
+
   const handleOpenModal = (owner?: VetOwner) => {
     if (owner) {
-      setIsEditing(true);
+      setIsEditing(false);
       setEditingOwnerId(owner.id);
       setOwnerForm({
         full_name: owner.full_name,
@@ -136,6 +154,7 @@ export const VetUsersPage = () => {
       if (owner.patients && owner.patients.length > 0) {
         setPets(owner.patients.map(p => ({
           id: crypto.randomUUID(),
+          dbId: p.id,
           name: p.name,
           species: p.species,
           breed: p.breed,
@@ -209,7 +228,21 @@ export const VetUsersPage = () => {
         });
 
         for (const pet of pets) {
-          if (pet.name && pet.species) {
+          if (pet.dbId !== null && pet.name && pet.species) {
+            let photoUrl = pet.photo_url;
+            if (pet.photo_file) {
+              const uploaded = await uploadPetPhoto(pet.photo_file);
+              if (uploaded) photoUrl = uploaded;
+            }
+            await vetService.updatePatient(pet.dbId, {
+              name: pet.name,
+              species: pet.species,
+              breed: pet.breed,
+              birth_date: pet.birth_date,
+              current_weight: parseFloat(pet.current_weight) || 0,
+              photo_url: photoUrl,
+            });
+          } else if (pet.dbId === null && pet.name && pet.species) {
             let photoUrl = pet.photo_url;
             if (pet.photo_file) {
               const uploaded = await uploadPetPhoto(pet.photo_file);
@@ -257,9 +290,50 @@ export const VetUsersPage = () => {
         }
       }
 
-      setShowModal(false);
       const ownersData = await vetService.getOwners();
       setOwners(ownersData);
+
+      if (searchType === 'patient') {
+        if (search) {
+          const patientsData = await vetService.searchPatients(search);
+          setPatients(patientsData);
+        } else {
+          const patientsData = await vetService.searchPatients('');
+          setPatients(patientsData);
+        }
+      }
+
+      if (editingOwnerId) {
+        const updatedOwner = ownersData.find((o: VetOwner) => o.id === editingOwnerId);
+        if (updatedOwner) {
+          setOwnerForm({
+            full_name: updatedOwner.full_name,
+            email: updatedOwner.email,
+            password: '',
+            confirm_password: '',
+            identification_number: updatedOwner.identification_number || '',
+            phone_number: updatedOwner.phone_number || '',
+            address: updatedOwner.address || '',
+          });
+          if (updatedOwner.patients && updatedOwner.patients.length > 0) {
+            setPets(updatedOwner.patients.map((p: VetPatient) => ({
+              id: crypto.randomUUID(),
+              dbId: p.id,
+              name: p.name,
+              species: p.species,
+              breed: p.breed,
+              birth_date: p.birth_date || '',
+              current_weight: p.current_weight?.toString() || '',
+              photo_url: p.photo_url || '',
+              photo_file: null,
+            })));
+          }
+          setIsEditing(false);
+        }
+        setShowModal(false);
+      } else {
+        setShowModal(false);
+      }
     } catch (err: any) {
       console.error('Error saving owner:', err);
       const errorMsg = err?.response?.data?.email?.[0] || err?.response?.data?.detail || 'Error al guardar';
@@ -331,42 +405,63 @@ export const VetUsersPage = () => {
           ))}
         </div>
       ) : searchType === 'patient' && patients.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {patients.map(patient => (
-            <div
-              key={patient.id}
-              onClick={() => {
-                const owner = owners.find(o => o.id === patient.owner_id);
-                if (owner) handleOpenModal(owner);
-              }}
-              className="bg-white rounded-2xl border border-slate-200 overflow-hidden cursor-pointer hover:shadow-xl hover:border-emerald-300 transition-all group"
-            >
-              <div className="relative h-40 bg-gradient-to-br from-emerald-100 to-teal-50">
-                {patient.photo_url ? (
-                  <img src={patient.photo_url} alt={patient.name} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-7xl">
-                    {getPetEmoji(patient.species)}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {patients.map(patient => {
+            const owner = owners.find(o => o.id === patient.owner_id);
+            const isCat = patient.species.toLowerCase().includes('felin') || patient.species.toLowerCase().includes('gat');
+            return (
+              <div
+                key={patient.id}
+                onClick={() => {
+                  if (owner) handleOpenModal(owner);
+                }}
+                className="group bg-white rounded-xl border border-slate-200 overflow-hidden cursor-pointer hover:border-slate-300 hover:shadow-md transition-all duration-200"
+              >
+                <div className="relative aspect-[4/3] bg-slate-100 overflow-hidden">
+                  {patient.photo_url ? (
+                    <img
+                      src={patient.photo_url}
+                      alt={patient.name}
+                      className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200">
+                      <span className="text-7xl opacity-40 select-none">
+                        {isCat ? '🐈' : '🐕'}
+                      </span>
+                    </div>
+                  )}
+                  <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 via-black/40 to-transparent" />
+                  <div className="absolute bottom-0 inset-x-0 px-4 pb-3">
+                    <h3 className="text-white text-[18px] font-semibold tracking-tight drop-shadow-sm mb-0.5">
+                      {patient.name}
+                    </h3>
+                    {owner && (
+                      <p className="text-white/75 text-xs drop-shadow-sm">
+                        {owner.full_name}
+                      </p>
+                    )}
                   </div>
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-              </div>
-              <div className="p-4">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-semibold text-slate-800 text-xl">{patient.name}</h3>
-                    <p className="text-sm text-emerald-600 font-medium">{patient.species} · {patient.breed}</p>
+                  <div className="absolute top-3 right-3">
+                    <span className="px-2.5 py-1 bg-white/20 backdrop-blur-sm rounded-full text-white text-[11px] font-medium">
+                      {isCat ? '🐱' : '🐶'}
+                    </span>
                   </div>
-                  <ChevronRight size={20} className="text-slate-300 group-hover:text-emerald-500 group-hover:translate-x-1 transition-all mt-1" />
                 </div>
-                <div className="mt-3 pt-3 border-t border-slate-100">
-                  <p className="text-xs text-slate-400">
-                    <span className="font-medium text-slate-600">Dueño:</span> {patient.owner_name}
-                  </p>
+                <div className="px-4 py-3">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-[13px] text-slate-700 font-medium">{patient.breed || 'Sin raza'}</p>
+                    {patient.current_weight > 0 && (
+                      <span className="text-[11px] text-slate-400 font-medium">
+                        {patient.current_weight} kg
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[12px] text-slate-400 font-medium">{patient.species}</p>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : owners.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
@@ -381,6 +476,7 @@ export const VetUsersPage = () => {
           {owners.map(owner => (
             <div
               key={owner.id}
+              onClick={() => handleViewOwner(owner)}
               className="bg-white rounded-2xl border border-slate-200 p-5 cursor-pointer hover:shadow-lg hover:border-brand-200 transition-all group"
             >
               <div className="flex items-center gap-4">
@@ -395,14 +491,11 @@ export const VetUsersPage = () => {
                     </span>
                   </div>
                   <p className="text-sm text-slate-500">{owner.email}</p>
+                  {owner.identification_number && (
+                    <p className="text-xs text-slate-400 mt-0.5">C.C. {owner.identification_number}</p>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleOpenModal(owner); }}
-                    className="p-3 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-xl transition-all"
-                  >
-                    <Edit2 size={18} />
-                  </button>
                   <ChevronRight size={20} className="text-slate-300 group-hover:text-brand-500 group-hover:translate-x-1 transition-all" />
                 </div>
               </div>
@@ -416,12 +509,27 @@ export const VetUsersPage = () => {
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
             <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
               <div>
-                <h2 className="text-xl font-semibold text-slate-800">{isEditing ? 'Editar propietario' : 'Nuevo propietario'}</h2>
-                <p className="text-sm text-slate-500 mt-0.5">{isEditing ? 'Actualiza los datos del propietario' : 'Completa los datos para crear un nuevo propietario'}</p>
+                <h2 className="text-xl font-semibold text-slate-800">
+                  {!editingOwnerId ? 'Nuevo propietario' : isEditing ? 'Editar propietario' : 'Ver propietario'}
+                </h2>
+                <p className="text-sm text-slate-500 mt-0.5">
+                  {!editingOwnerId ? 'Completa los datos para crear un nuevo propietario' : isEditing ? 'Actualiza los datos del propietario' : 'Información del propietario'}
+                </p>
               </div>
-              <button onClick={() => setShowModal(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-all">
-                <X size={20} />
-              </button>
+              <div className="flex items-center gap-2">
+                {editingOwnerId && !isEditing && (
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-xl hover:bg-brand-700 transition-all font-medium"
+                  >
+                    <Edit2 size={16} />
+                    Editar
+                  </button>
+                )}
+                <button onClick={() => setShowModal(false)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-all">
+                  <X size={20} />
+                </button>
+              </div>
             </div>
 
             <div className="p-6 space-y-6 max-h-[calc(90vh-180px)] overflow-y-auto">
@@ -440,8 +548,9 @@ export const VetUsersPage = () => {
                       type="text"
                       value={ownerForm.full_name}
                       onChange={(e) => setOwnerForm({ ...ownerForm, full_name: e.target.value })}
-                      className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-slate-50/50 transition-all"
-                      placeholder="Juan Pérez"
+                      disabled={isViewMode}
+                      className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-slate-50/50 transition-all disabled:bg-slate-100 disabled:text-slate-600"
+                     
                     />
                   </div>
 
@@ -451,12 +560,25 @@ export const VetUsersPage = () => {
                       type="email"
                       value={ownerForm.email}
                       onChange={(e) => setOwnerForm({ ...ownerForm, email: e.target.value })}
-                      className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-slate-50/50 transition-all"
-                      placeholder="juan@email.com"
+                      disabled={isViewMode}
+                      className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-slate-50/50 transition-all disabled:bg-slate-100 disabled:text-slate-600"
+                     
                     />
                   </div>
 
-                  {!isEditing && (
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">Cédula</label>
+                    <input
+                      type="text"
+                      value={ownerForm.identification_number}
+                      onChange={(e) => setOwnerForm({ ...ownerForm, identification_number: e.target.value })}
+                      disabled={isViewMode}
+                      className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-slate-50/50 transition-all disabled:bg-slate-100 disabled:text-slate-600"
+                     
+                    />
+                  </div>
+
+                  {!editingOwnerId && (
                     <>
                       <div>
                         <label className="block text-xs font-medium text-slate-600 mb-1.5">Contraseña *</label>
@@ -465,7 +587,7 @@ export const VetUsersPage = () => {
                           value={ownerForm.password}
                           onChange={(e) => setOwnerForm({ ...ownerForm, password: e.target.value })}
                           className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-slate-50/50 transition-all"
-                          placeholder="Mínimo 8 caracteres"
+                        
                         />
                       </div>
                       <div>
@@ -475,7 +597,7 @@ export const VetUsersPage = () => {
                           value={ownerForm.confirm_password}
                           onChange={(e) => setOwnerForm({ ...ownerForm, confirm_password: e.target.value })}
                           className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-slate-50/50 transition-all"
-                          placeholder="Repite la contraseña"
+                        
                         />
                       </div>
                     </>
@@ -492,7 +614,7 @@ export const VetUsersPage = () => {
                             value={ownerForm.password}
                             onChange={(e) => setOwnerForm({ ...ownerForm, password: e.target.value })}
                             className="w-full px-3 py-2 border border-amber-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-                            placeholder="Nueva contraseña"
+                           
                           />
                         </div>
                         <div>
@@ -502,7 +624,7 @@ export const VetUsersPage = () => {
                             value={ownerForm.confirm_password}
                             onChange={(e) => setOwnerForm({ ...ownerForm, confirm_password: e.target.value })}
                             className="w-full px-3 py-2 border border-amber-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-                            placeholder="Repite la contraseña"
+                           
                           />
                         </div>
                       </div>
@@ -515,8 +637,9 @@ export const VetUsersPage = () => {
                       type="tel"
                       value={ownerForm.phone_number}
                       onChange={(e) => setOwnerForm({ ...ownerForm, phone_number: e.target.value })}
-                      className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-slate-50/50 transition-all"
-                      placeholder="3001234567"
+                      disabled={isViewMode}
+                      className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-slate-50/50 transition-all disabled:bg-slate-100 disabled:text-slate-600"
+                     
                     />
                   </div>
 
@@ -526,8 +649,9 @@ export const VetUsersPage = () => {
                       type="text"
                       value={ownerForm.address}
                       onChange={(e) => setOwnerForm({ ...ownerForm, address: e.target.value })}
-                      className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-slate-50/50 transition-all"
-                      placeholder="Calle 123 #45-67"
+                      disabled={isViewMode}
+                      className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-slate-50/50 transition-all disabled:bg-slate-100 disabled:text-slate-600"
+                     
                     />
                   </div>
                 </div>
@@ -541,14 +665,16 @@ export const VetUsersPage = () => {
                     </div>
                     <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wider">Mascotas</h3>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleAddPet}
-                    className="flex items-center gap-1.5 px-4 py-2 text-sm bg-emerald-100 text-emerald-700 rounded-xl hover:bg-emerald-200 transition-all font-medium"
-                  >
-                    <Plus size={16} />
-                    Añadir mascota
-                  </button>
+                  {isEditing || editingOwnerId === null ? (
+                    <button
+                      type="button"
+                      onClick={handleAddPet}
+                      className="flex items-center gap-1.5 px-4 py-2 text-sm bg-emerald-100 text-emerald-700 rounded-xl hover:bg-emerald-200 transition-all font-medium"
+                    >
+                      <Plus size={16} />
+                      Añadir mascota
+                    </button>
+                  ) : null}
                 </div>
 
                 {pets.length === 0 ? (
@@ -568,7 +694,8 @@ export const VetUsersPage = () => {
                         index={index}
                         onChange={(field, value) => handlePetChange(pet.id, field, value)}
                         onRemove={() => handleRemovePet(pet.id)}
-                        canRemove={pets.length > 1}
+                        canRemove={pets.length > 1 && isEditing}
+                        disabled={isViewMode}
                       />
                     ))}
                   </div>
@@ -578,26 +705,34 @@ export const VetUsersPage = () => {
 
             <div className="flex gap-3 p-6 border-t border-slate-100 bg-slate-50/50">
               <button
-                onClick={() => setShowModal(false)}
+                onClick={() => {
+                  if (isEditing && editingOwnerId !== null) {
+                    setIsEditing(false);
+                  } else {
+                    setShowModal(false);
+                  }
+                }}
                 className="flex-1 px-4 py-3 text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all font-medium"
               >
-                Cancelar
+                {isEditing ? 'Cancelar' : 'Cerrar'}
               </button>
-              <button
-                onClick={handleSave}
-                disabled={!ownerForm.full_name || !ownerForm.email || isSaving}
-                className="flex-1 px-4 py-3 bg-brand-600 text-white rounded-xl hover:bg-brand-700 disabled:opacity-50 transition-all font-medium shadow-lg shadow-brand-600/20"
-              >
-                {isSaving ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    Guardando...
-                  </span>
-                ) : isEditing ? 'Actualizar' : 'Crear propietario'}
-              </button>
+              {isEditing || editingOwnerId === null ? (
+                <button
+                  onClick={handleSave}
+                  disabled={!ownerForm.full_name || !ownerForm.email || isSaving}
+                  className="flex-1 px-4 py-3 bg-brand-600 text-white rounded-xl hover:bg-brand-700 disabled:opacity-50 transition-all font-medium shadow-lg shadow-brand-600/20"
+                >
+                  {isSaving ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Guardando...
+                    </span>
+                  ) : editingOwnerId ? 'Actualizar' : 'Crear'}
+                </button>
+              ) : null}
             </div>
           </div>
         </div>
@@ -612,9 +747,10 @@ interface PetFormCardProps {
   onChange: (field: keyof PetFormData, value: string | File | null) => void;
   onRemove: () => void;
   canRemove: boolean;
+  disabled?: boolean;
 }
 
-function PetFormCard({ pet, index, onChange, onRemove, canRemove }: PetFormCardProps) {
+function PetFormCard({ pet, index, onChange, onRemove, canRemove, disabled = false }: PetFormCardProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -652,15 +788,17 @@ function PetFormCard({ pet, index, onChange, onRemove, canRemove }: PetFormCardP
           </div>
           <span className="text-sm font-medium text-slate-600">Mascota {index + 1}</span>
         </div>
-        {canRemove && (
-          <button
-            type="button"
-            onClick={onRemove}
-            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-          >
-            <Trash2 size={16} />
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {canRemove && !disabled && (
+            <button
+              type="button"
+              onClick={onRemove}
+              className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -670,8 +808,8 @@ function PetFormCard({ pet, index, onChange, onRemove, canRemove }: PetFormCardP
             type="text"
             value={pet.name}
             onChange={(e) => onChange('name', e.target.value)}
-            className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white transition-all"
-            placeholder="Luna"
+            disabled={disabled}
+            className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white transition-all disabled:bg-slate-100 disabled:text-slate-600"
           />
         </div>
 
@@ -680,7 +818,8 @@ function PetFormCard({ pet, index, onChange, onRemove, canRemove }: PetFormCardP
           <select
             value={pet.species}
             onChange={(e) => onChange('species', e.target.value)}
-            className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white transition-all"
+            disabled={disabled}
+            className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white transition-all disabled:bg-slate-100 disabled:text-slate-600"
           >
             <option value="">Seleccionar</option>
             <option value="Canino">Canino</option>
@@ -694,8 +833,8 @@ function PetFormCard({ pet, index, onChange, onRemove, canRemove }: PetFormCardP
             type="text"
             value={pet.breed}
             onChange={(e) => onChange('breed', e.target.value)}
-            className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white transition-all"
-            placeholder="Labrador"
+            disabled={disabled}
+            className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white transition-all disabled:bg-slate-100 disabled:text-slate-600"
           />
         </div>
 
@@ -705,7 +844,8 @@ function PetFormCard({ pet, index, onChange, onRemove, canRemove }: PetFormCardP
             type="date"
             value={pet.birth_date}
             onChange={(e) => onChange('birth_date', e.target.value)}
-            className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white transition-all"
+            disabled={disabled}
+            className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white transition-all disabled:bg-slate-100 disabled:text-slate-600"
           />
         </div>
 
@@ -715,8 +855,8 @@ function PetFormCard({ pet, index, onChange, onRemove, canRemove }: PetFormCardP
             type="number"
             value={pet.current_weight}
             onChange={(e) => onChange('current_weight', e.target.value)}
-            className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white transition-all"
-            placeholder="15.5"
+            disabled={disabled}
+            className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white transition-all disabled:bg-slate-100 disabled:text-slate-600"
             step="0.1"
           />
         </div>
@@ -724,17 +864,17 @@ function PetFormCard({ pet, index, onChange, onRemove, canRemove }: PetFormCardP
         <div className="col-span-2 md:col-span-3">
           <label className="block text-xs font-medium text-slate-600 mb-1.5">Foto</label>
           <div
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            className={`relative border-2 border-dashed rounded-xl transition-all cursor-pointer ${
+            onDragOver={disabled ? undefined : handleDragOver}
+            onDragLeave={disabled ? undefined : handleDragLeave}
+            onDrop={disabled ? undefined : handleDrop}
+            className={`relative border-2 border-dashed rounded-xl transition-all ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'} ${
               isDragging
                 ? 'border-emerald-500 bg-emerald-50'
                 : pet.photo_url || pet.photo_file
                 ? 'border-emerald-200 bg-emerald-50/30'
                 : 'border-slate-300 bg-white hover:border-emerald-400 hover:bg-emerald-50/30'
             }`}
-            onClick={() => fileInputRef.current?.click()}
+            onClick={disabled ? undefined : () => fileInputRef.current?.click()}
           >
             <input
               ref={fileInputRef}
@@ -742,44 +882,56 @@ function PetFormCard({ pet, index, onChange, onRemove, canRemove }: PetFormCardP
               accept="image/*"
               onChange={handleFileSelect}
               className="hidden"
+              disabled={disabled}
             />
             {pet.photo_url ? (
               <div className="flex items-center gap-4 p-3">
                 <img src={pet.photo_url} alt={pet.name} className="w-16 h-16 rounded-xl object-cover shadow-md" />
                 <div className="flex-1">
                   <p className="text-sm font-medium text-slate-700">Foto cargada</p>
-                  <p className="text-xs text-slate-500">Clic para cambiar</p>
+                  {!disabled && <p className="text-xs text-slate-500">Clic para cambiar</p>}
                 </div>
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); onChange('photo_url', ''); }}
-                  className="p-2 text-red-500 hover:bg-red-100 rounded-lg transition-all"
-                >
-                  <Trash2 size={16} />
-                </button>
+                {!disabled && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onChange('photo_url', ''); }}
+                    className="p-2 text-red-500 hover:bg-red-100 rounded-lg transition-all"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
               </div>
             ) : pet.photo_file ? (
               <div className="flex items-center gap-4 p-3">
                 <img src={URL.createObjectURL(pet.photo_file)} alt={pet.name} className="w-16 h-16 rounded-xl object-cover shadow-md" />
                 <div className="flex-1">
                   <p className="text-sm font-medium text-slate-700">{pet.photo_file.name}</p>
-                  <p className="text-xs text-slate-500">Clic para cambiar</p>
+                  {!disabled && <p className="text-xs text-slate-500">Clic para cambiar</p>}
                 </div>
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); onChange('photo_file', null); }}
-                  className="p-2 text-red-500 hover:bg-red-100 rounded-lg transition-all"
-                >
-                  <Trash2 size={16} />
-                </button>
+                {!disabled && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onChange('photo_file', null); }}
+                    className="p-2 text-red-500 hover:bg-red-100 rounded-lg transition-all"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
               </div>
-            ) : (
+            ) : !disabled ? (
               <div className="flex flex-col items-center justify-center py-8 px-4">
                 <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mb-3">
                   <Camera size={24} className="text-slate-400" />
                 </div>
                 <p className="text-sm font-medium text-slate-600">Arrastra una foto aquí</p>
                 <p className="text-xs text-slate-400 mt-1">o haz clic para seleccionar</p>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-8 px-4">
+                <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mb-3">
+                  <Camera size={24} className="text-slate-400" />
+                </div>
+                <p className="text-sm font-medium text-slate-400">Sin foto</p>
               </div>
             )}
           </div>
