@@ -86,6 +86,10 @@ export interface VetMonitoring {
   id: number;
   surgery_type: string;
   surgery_date: string;
+  home_release_date: string | null;
+  discharged_at: string | null;
+  days_since_surgery: number | null;
+  days_since_release: number | null;
   report_frequency_hours: number;
   status: string;
   patient_name: string;
@@ -219,10 +223,25 @@ export const vetService = {
     patient_id: number;
     surgery_type: string;
     surgery_date: string;
+    home_release_date?: string | null;
     report_frequency_hours: number;
     status?: string;
+    custom_questions?: { text: string; instruction_text?: string }[];
   }): Promise<VetMonitoring> => {
     const response = await apiClient.post<VetMonitoring>('/vet/monitorings/', data);
+    return response.data;
+  },
+
+  releaseMonitoring: async (id: number, date?: string): Promise<VetMonitoring> => {
+    const response = await apiClient.post<VetMonitoring>(
+      `/vet/monitorings/${id}/release/`,
+      date ? { home_release_date: date } : {}
+    );
+    return response.data;
+  },
+
+  dischargeMonitoring: async (id: number): Promise<VetMonitoring> => {
+    const response = await apiClient.post<VetMonitoring>(`/vet/monitorings/${id}/discharge/`, {});
     return response.data;
   },
 

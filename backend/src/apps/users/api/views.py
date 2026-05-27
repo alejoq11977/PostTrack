@@ -18,13 +18,53 @@ logger = logging.getLogger(__name__)
 class UserProfileAPIView(APIView):
     permission_classes =[IsAuthenticated]
 
+    def _active_membership(self, request):
+        """The membership for the clinic the user is currently in (X-Clinic-Id), if any."""
+        from apps.clinics.models import ClinicMembership
+        cid = request.headers.get('X-Clinic-Id')
+        if not cid:
+            return None
+        try:
+            cid = int(cid)
+        except (TypeError, ValueError):
+            return None
+        return ClinicMembership.objects.filter(
+            user=request.user, clinic_id=cid, is_active=True
+        ).first()
+
+    def _with_clinic_profile(self, request, data):
+        """Overlay the per-clinic profile (what the user sees/edits *in this clinic*)."""
+        m = self._active_membership(request)
+        if m:
+            data = dict(data)
+            data['full_name'] = m.full_name or data.get('full_name')
+            data['identification_type'] = m.identification_type or data.get('identification_type')
+            data['identification_number'] = m.identification_number or data.get('identification_number')
+            data['phone_number'] = m.phone_number
+            data['address'] = m.address
+        return data
+
     def get(self, request):
-        """Devuelve los datos del usuario autenticado."""
-        serializer = UserProfileSerializer(request.user)
-        return Response(serializer.data)
-        
+        """Devuelve los datos del usuario autenticado (perfil de la clínica activa)."""
+        data = UserProfileSerializer(request.user).data
+        return Response(self._with_clinic_profile(request, data))
+
     def patch(self, request):
-        """Permite al usuario actualizar sus datos (Derecho de Actualizar/Rectificar)."""
+        """
+        Actualizar/Rectificar. Con clínica activa, el usuario edita su perfil
+        *de esa clínica* (la membresía) — así su cambio se refleja en lo que ve
+        esa clínica, sin tocar a las demás (Ley 1581).
+        """
+        membership = self._active_membership(request)
+        if membership:
+            for field in ('full_name', 'phone_number', 'address'):
+                if field in request.data:
+                    setattr(membership, field, request.data.get(field))
+            membership.save()
+            data = UserProfileSerializer(request.user).data
+            return Response(self._with_clinic_profile(request, data))
+
+        # No clinic context → fall back to the canonical User record.
         serializer = UserProfileSerializer(request.user, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()

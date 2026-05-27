@@ -3,7 +3,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
-from ..models import Clinic, VetClinic, DataPolicy, DataAuthorization, ClinicAuditLog
+from ..models import Clinic, ClinicMembership, DataPolicy, DataAuthorization, ClinicAuditLog
 from ..serializers import (
     ClinicSerializer, VetClinicSerializer, VetClinicCreateSerializer,
     DataPolicySerializer, DataAuthorizationSerializer,
@@ -59,7 +59,7 @@ class VetClinicLinkAPIView(APIView):
         serializer = VetClinicCreateSerializer(data=request.data)
         if serializer.is_valid():
             vet_clinic = VetClinicService.link_vet_to_clinic(
-                veterinarian=serializer.validated_data['veterinarian'],
+                veterinarian=serializer.validated_data['user'],
                 clinic=serializer.validated_data['clinic']
             )
             return Response(
@@ -80,10 +80,10 @@ class VetClinicUnlinkAPIView(APIView):
             )
 
         try:
-            vet_clinic = VetClinic.objects.get(id=vet_clinic_id)
+            vet_clinic = ClinicMembership.objects.get(id=vet_clinic_id)
             vet_clinic.unlink()
             return Response({"message": "Veterinario desvinculado exitosamente."})
-        except VetClinic.DoesNotExist:
+        except ClinicMembership.DoesNotExist:
             return Response(
                 {"error": "Vínculo no encontrado."},
                 status=status.HTTP_404_NOT_FOUND

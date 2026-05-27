@@ -52,6 +52,7 @@ export function useRealtimeAlerts(options: UseRealtimeAlertsOptions = {}): UseRe
     alerts?: VetReport[];
     alert_count?: number;
     missing_count?: number;
+    missing_reports?: MissingReport[];
   } | null>(null);
   const rafIdRef = useRef<number | null>(null);
 
@@ -72,6 +73,9 @@ export function useRealtimeAlerts(options: UseRealtimeAlertsOptions = {}): UseRe
           if (pendingUpdateRef.current.missing_count !== undefined) {
             setMissingCount(pendingUpdateRef.current.missing_count);
           }
+          if (pendingUpdateRef.current.missing_reports !== undefined) {
+            setMissingReports(pendingUpdateRef.current.missing_reports);
+          }
           pendingUpdateRef.current = null;
         }
       });
@@ -87,7 +91,9 @@ export function useRealtimeAlerts(options: UseRealtimeAlertsOptions = {}): UseRe
       if (!token) return;
 
       const baseUrl = getApiBaseUrl();
-      const headers = { 'Authorization': `Bearer ${token}` };
+      const clinicId = localStorage.getItem('posttrack_active_clinic_id');
+      const headers: Record<string, string> = { 'Authorization': `Bearer ${token}` };
+      if (clinicId) headers['X-Clinic-Id'] = clinicId;
 
       const [reportsRes, alertsRes, missingRes] = await Promise.all([
         fetch(`${baseUrl}/api/vet/reports/?filter=pending&limit=10`, { headers }),
@@ -102,9 +108,12 @@ export function useRealtimeAlerts(options: UseRealtimeAlertsOptions = {}): UseRe
 
       if (alertsRes.ok) {
         const alertsData = await alertsRes.json();
-        setAlerts(alertsData.results || alertsData);
-        const highCount = (alertsData.results || alertsData).filter((r: VetReport) => r.calculated_risk === 'HIGH').length;
-        setAlertCount(highCount);
+        const results = alertsData.results || alertsData;
+        setAlerts(results);
+        // El badge debe reflejar el total de alertas pendientes (lo que muestra la
+        // lista), no solo las de riesgo ALTO. `count` es el total real (sin paginar).
+        const total = typeof alertsData.count === 'number' ? alertsData.count : results.length;
+        setAlertCount(total);
       }
 
       if (missingRes.ok) {
@@ -141,7 +150,9 @@ export function useRealtimeAlerts(options: UseRealtimeAlertsOptions = {}): UseRe
 
       const token = await currentUser.getIdToken();
       const baseUrl = getApiBaseUrl();
-      const url = `${baseUrl}/api/vet/alerts/stream/?token=${encodeURIComponent(token)}`;
+      const clinicId = localStorage.getItem('posttrack_active_clinic_id');
+      const clinicParam = clinicId ? `&clinic_id=${encodeURIComponent(clinicId)}` : '';
+      const url = `${baseUrl}/api/vet/alerts/stream/?token=${encodeURIComponent(token)}${clinicParam}`;
 
       console.log('[SSE] Connecting to:', url.substring(0, 80) + '...');
 
@@ -161,8 +172,10 @@ export function useRealtimeAlerts(options: UseRealtimeAlertsOptions = {}): UseRe
             pendingUpdateRef.current = {
               reports: data.reports || [],
               alerts: data.reports || [],
-              alert_count: data.alert_count,
-              missing_count: data.missing_count
+              // Total de alertas pendientes (coincide con la lista), no solo ALTO.
+              alert_count: typeof data.count === 'number' ? data.count : data.alert_count,
+              missing_count: data.missing_count,
+              missing_reports: data.missing_reports
             };
             scheduleUpdate();
           }

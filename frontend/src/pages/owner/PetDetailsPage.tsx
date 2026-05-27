@@ -46,8 +46,8 @@ export const PetDetailsPage = () => {
           className="border-4 border-white shadow-md" 
         />
         <div>
-          <h1 className="text-[26px] font-display font-semibold text-slate-800 mb-1 tracking-tight">{patient.name}</h1>
-          <p className="text-slate-500 text-[14px]">Seguimientos postoperatorios asociados.</p>
+          <h1 className="text-[28px] font-display font-semibold text-slate-800 mb-1 tracking-tight">{patient.name}</h1>
+          <p className="text-slate-500 text-sm">Seguimientos postoperatorios asociados.</p>
         </div>
       </div>
 

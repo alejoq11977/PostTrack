@@ -8,7 +8,8 @@ class RiskLevel(models.TextChoices):
 
 class GeneralQuestion(AuditableModel):
     text = models.CharField(max_length=500)
-    associated_risk = models.CharField(max_length=10, choices=RiskLevel.choices)
+    factor = models.CharField(max_length=100, blank=True, default='', help_text="Factor clínico asociado (ej: Fiebre, Hinchazón).")
+    associated_risk = models.CharField(max_length=10, choices=RiskLevel.choices, help_text="Riesgo por defecto (respaldo si no hay riesgo por ventana).")
     instruction_text = models.TextField(blank=True, null=True, help_text="Instrucción sutil para ayudar al dueño a responder.")
 
     class Meta:

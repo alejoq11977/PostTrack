@@ -9,6 +9,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 # Initialize environ
 env = environ.Env()
 
+# Read backend/src/.env if present (no-op when the file is absent)
+environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
+
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = env('SECRET_KEY', default='unsafe-secret-key-for-dev')
 
@@ -137,6 +140,20 @@ CORS_ALLOW_HEADERS = [
 
 # IMGBB API Configuration
 IMGBB_API_KEY = env('IMGBB_API_KEY', default='')
+
+# Frontend base URL (used to build links inside emails)
+FRONTEND_URL = env('FRONTEND_URL', default='http://localhost:5173')
+
+# Email via Brevo SMTP. When EMAIL_HOST_PASSWORD is unset, emails are logged instead of sent.
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = env('EMAIL_HOST', default='smtp-relay.brevo.com')
+EMAIL_PORT = env.int('EMAIL_PORT', default=587)
+EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
+EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
+BREVO_SENDER_EMAIL = env('BREVO_SENDER_EMAIL', default='')
+BREVO_SENDER_NAME = env('BREVO_SENDER_NAME', default='PostTrack')
+DEFAULT_FROM_EMAIL = BREVO_SENDER_EMAIL or 'no-reply@posttrack.local'
 
 # Media files (Archivos físicos subidos temporalmente)
 MEDIA_URL = '/media/'

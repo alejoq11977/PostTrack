@@ -1,7 +1,7 @@
 from django.utils import timezone
 from django.db.models import Q
 from ..models import (
-    Clinic, VetClinic, DataPolicy,
+    Clinic, ClinicMembership, DataPolicy,
     DataAuthorization, DataTreatmentAcceptance, ClinicAuditLog
 )
 
@@ -14,15 +14,15 @@ class ClinicService:
 
         if user.role == 'VETERINARIAN':
             return Clinic.objects.filter(
-                vet_clinics__veterinarian=user,
-                vet_clinics__is_active=True,
+                memberships__user=user,
+                memberships__is_active=True,
                 is_active=True
             ).distinct()
 
         if user.role == 'OWNER':
             return Clinic.objects.filter(
-                patients__owner=user,
-                patients__is_active=True,
+                memberships__user=user,
+                memberships__is_active=True,
                 is_active=True
             ).distinct()
 
@@ -36,12 +36,13 @@ class ClinicService:
 class VetClinicService:
     @staticmethod
     def link_vet_to_clinic(veterinarian, clinic):
-        vet_clinic, created = VetClinic.objects.update_or_create(
-            veterinarian=veterinarian,
+        vet_clinic, created = ClinicMembership.objects.update_or_create(
+            user=veterinarian,
             clinic=clinic,
             defaults={
                 'is_active': True,
-                'unlinked_at': None
+                'unlinked_at': None,
+                'role': 'VETERINARIAN',
             }
         )
         return vet_clinic
@@ -49,20 +50,20 @@ class VetClinicService:
     @staticmethod
     def unlink_vet_from_clinic(veterinarian, clinic):
         try:
-            vet_clinic = VetClinic.objects.get(
-                veterinarian=veterinarian,
+            vet_clinic = ClinicMembership.objects.get(
+                user=veterinarian,
                 clinic=clinic,
                 is_active=True
             )
             vet_clinic.unlink()
             return True
-        except VetClinic.DoesNotExist:
+        except ClinicMembership.DoesNotExist:
             return False
 
     @staticmethod
     def is_vet_in_clinic(veterinarian, clinic):
-        return VetClinic.objects.filter(
-            veterinarian=veterinarian,
+        return ClinicMembership.objects.filter(
+            user=veterinarian,
             clinic=clinic,
             is_active=True
         ).exists()

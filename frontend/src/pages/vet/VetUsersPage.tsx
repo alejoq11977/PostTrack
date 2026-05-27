@@ -76,15 +76,6 @@ const getEmailTypoWarning = (email: string): string | null => {
   return null;
 };
 
-const getPasswordErrors = (pwd: string): string[] => {
-  if (!pwd) return [];
-  const errors = [];
-  if (pwd.length > 0 && pwd.length < 8) errors.push('Mínimo 8 caracteres');
-  if (pwd.length > 0 && !/\d/.test(pwd)) errors.push('Al menos un número');
-  if (pwd.length > 0 && !/[!@#$%^&*(),.?":{}|<>]/.test(pwd)) errors.push('Al menos un carácter especial (!@#$%^&*)');
-  return errors;
-};
-
 export const VetUsersPage = () => {
   const [owners, setOwners] = useState<VetOwner[]>([]);
   const [patients, setPatients] = useState<VetPatient[]>([]);
@@ -99,7 +90,6 @@ export const VetUsersPage = () => {
   const [isSaving, setIsSaving] = useState(false);
 
   const isViewMode = editingOwnerId !== null && !isEditing;
-  const passwordErrors = getPasswordErrors(ownerForm.password);
   const emailTypoWarning = getEmailTypoWarning(ownerForm.email);
 
   useEffect(() => {
@@ -157,10 +147,10 @@ export const VetUsersPage = () => {
       email: owner.email,
       password: '',
       confirm_password: '',
-      identification_type: owner.identification_type || '',
-      identification_number: owner.identification_number || '',
-      phone_number: owner.phone_number || '',
-      address: owner.address || '',
+      identification_type: owner.identification_type || null || '',
+      identification_number: owner.identification_number || null || '',
+      phone_number: owner.phone_number || null || '',
+      address: owner.address || null || '',
     });
     if (owner.patients && owner.patients.length > 0) {
       setPets(owner.patients.map(p => ({
@@ -189,10 +179,10 @@ export const VetUsersPage = () => {
         email: owner.email,
         password: '',
         confirm_password: '',
-        identification_type: owner.identification_type || '',
-        identification_number: owner.identification_number || '',
-        phone_number: owner.phone_number || '',
-        address: owner.address || '',
+        identification_type: owner.identification_type ?? '',
+        identification_number: owner.identification_number ?? '',
+        phone_number: owner.phone_number ?? '',
+        address: owner.address ?? '',
       });
       if (owner.patients && owner.patients.length > 0) {
         setPets(owner.patients.map(p => ({
@@ -272,18 +262,14 @@ export const VetUsersPage = () => {
       return;
     }
 
-    if (passwordErrors.length > 0) {
-      alert('La contraseña no cumple con los requisitos:\n' + passwordErrors.join('\n'));
-      return;
-    }
-
-    if (ownerForm.password && ownerForm.password !== ownerForm.confirm_password) {
-      alert('Las contraseñas no coinciden');
-      return;
-    }
-
     if (!editingOwnerId && pets.length === 0) {
       alert('Debes añadir al menos una mascota al crear un nuevo propietario');
+      return;
+    }
+
+    const petsToSave = pets.filter(p => p.name && p.species);
+    if (petsToSave.some(p => !p.birth_date)) {
+      alert('La fecha de nacimiento es obligatoria para cada mascota.');
       return;
     }
 
@@ -293,6 +279,7 @@ export const VetUsersPage = () => {
         await vetService.updateOwner(editingOwnerId, {
           full_name: ownerForm.full_name,
           email: ownerForm.email,
+          identification_type: ownerForm.identification_type,
           identification_number: ownerForm.identification_number,
           phone_number: ownerForm.phone_number,
           address: ownerForm.address,
@@ -335,8 +322,6 @@ export const VetUsersPage = () => {
           full_name: ownerForm.full_name,
           email: ownerForm.email,
           identification_type: ownerForm.identification_type,
-          password: ownerForm.password || '',
-          confirm_password: ownerForm.confirm_password || '',
           identification_number: ownerForm.identification_number,
           phone_number: ownerForm.phone_number,
           address: ownerForm.address,
@@ -424,10 +409,10 @@ export const VetUsersPage = () => {
   return (
     <div className="animate-in fade-in duration-500">
       <div className="mb-6">
-        <h1 className="text-[24px] font-display font-semibold text-slate-800 tracking-tight">
+        <h1 className="text-[28px] font-display font-semibold text-slate-800 tracking-tight">
           Propietarios
         </h1>
-        <p className="text-slate-400 text-[13px] mt-1">
+        <p className="text-slate-400 text-sm mt-1">
           Gestiona propietarios y sus mascotas
         </p>
       </div>
@@ -469,9 +454,9 @@ export const VetUsersPage = () => {
 
         <button
           onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 px-5 py-2.5 bg-brand-600 text-white rounded-xl hover:bg-brand-700 transition-all shadow-lg shadow-brand-600/20 hover:shadow-brand-600/30"
+          className="flex items-center gap-2 px-6 py-3 bg-brand-600 text-white rounded-xl hover:bg-brand-700 transition-all shadow-lg shadow-brand-600/20 hover:shadow-brand-600/30 text-base"
         >
-          <UserPlus size={18} />
+          <UserPlus size={20} />
           Crear usuario
         </button>
       </div>
@@ -483,7 +468,7 @@ export const VetUsersPage = () => {
           ))}
         </div>
       ) : searchType === 'patient' && patients.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
           {patients.map(patient => {
             const owner = owners.find(o => o.id === patient.owner_id);
             const isCat = patient.species.toLowerCase().includes('felin') || patient.species.toLowerCase().includes('gat');
@@ -676,77 +661,10 @@ export const VetUsersPage = () => {
                   </div>
 
                   {!editingOwnerId && (
-                    <>
-                      <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1.5">Contraseña</label>
-                        <input
-                          type="password"
-                          value={ownerForm.password}
-                          onChange={(e) => setOwnerForm({ ...ownerForm, password: e.target.value })}
-                          className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-slate-50/50 transition-all"
-                        />
-                        <p className="text-xs text-slate-400 mt-1">
-                          Si se deja vacía, la contraseña será ".{ownerForm.identification_number || '12345678'}@"
-                        </p>
-                        {passwordErrors.length > 0 && (
-                          <div className="mt-1.5 space-y-0.5">
-                            {passwordErrors.map((err, i) => (
-                              <p key={i} className="text-xs text-red-600 flex items-center gap-1">
-                                <span>●</span> {err}
-                              </p>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1.5">Confirmar Contraseña</label>
-                        <input
-                          type="password"
-                          value={ownerForm.confirm_password}
-                          onChange={(e) => setOwnerForm({ ...ownerForm, confirm_password: e.target.value })}
-                          className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-slate-50/50 transition-all"
-                        />
-                        {ownerForm.confirm_password && ownerForm.password !== ownerForm.confirm_password && (
-                          <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
-                            <span>●</span> Las contraseñas no coinciden
-                          </p>
-                        )}
-                      </div>
-                    </>
-                  )}
-
-                  {isEditing && ownerForm.password && (
-                    <div className="col-span-2 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-                      <p className="text-sm text-amber-700 font-medium">Cambiar contraseña</p>
-                      <div className="mt-2 grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs font-medium text-amber-700 mb-1">Nueva contraseña</label>
-                          <input
-                            type="password"
-                            value={ownerForm.password}
-                            onChange={(e) => setOwnerForm({ ...ownerForm, password: e.target.value })}
-                            className="w-full px-3 py-2 border border-amber-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-                          />
-                          {passwordErrors.length > 0 && (
-                            <div className="mt-1 space-y-0.5">
-                              {passwordErrors.map((err, i) => (
-                                <p key={i} className="text-xs text-red-600 flex items-center gap-1">
-                                  <span>●</span> {err}
-                                </p>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-amber-700 mb-1">Confirmar</label>
-                          <input
-                            type="password"
-                            value={ownerForm.confirm_password}
-                            onChange={(e) => setOwnerForm({ ...ownerForm, confirm_password: e.target.value })}
-                            className="w-full px-3 py-2 border border-amber-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-                          />
-                        </div>
-                      </div>
+                    <div className="col-span-2 p-4 bg-brand-50 border border-brand-200 rounded-xl">
+                      <p className="text-sm text-brand-700">
+                        Se le enviará un correo al propietario para que <strong>active su cuenta y cree su propia contraseña</strong>. La clínica no define la contraseña.
+                      </p>
                     </div>
                   )}
 
@@ -871,6 +789,16 @@ function PetFormCard({ pet, index, onChange, onRemove, canRemove, disabled = fal
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
 
+  // Object URL creado DENTRO del efecto y liberado en la limpieza: correcto bajo
+  // StrictMode (monta/limpia/remonta el efecto) y sin fugas de memoria.
+  const [photoFilePreview, setPhotoFilePreview] = useState<string | null>(null);
+  useEffect(() => {
+    if (!pet.photo_file) { setPhotoFilePreview(null); return; }
+    const objectUrl = URL.createObjectURL(pet.photo_file);
+    setPhotoFilePreview(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [pet.photo_file]);
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(true);
@@ -956,7 +884,7 @@ function PetFormCard({ pet, index, onChange, onRemove, canRemove, disabled = fal
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1.5">Fecha nacimiento</label>
+          <label className="block text-xs font-medium text-slate-600 mb-1.5">Fecha nacimiento *</label>
           <input
             type="date"
             value={pet.birth_date}
@@ -1020,7 +948,7 @@ function PetFormCard({ pet, index, onChange, onRemove, canRemove, disabled = fal
               </div>
             ) : pet.photo_file ? (
               <div className="flex items-center gap-4 p-3">
-                <img src={URL.createObjectURL(pet.photo_file)} alt={pet.name} className="w-16 h-16 rounded-xl object-cover shadow-md" />
+                {photoFilePreview && <img src={photoFilePreview} alt={pet.name} className="w-16 h-16 rounded-xl object-cover shadow-md" />}
                 <div className="flex-1">
                   <p className="text-sm font-medium text-slate-700">{pet.photo_file.name}</p>
                   {!disabled && <p className="text-xs text-slate-500">Clic para cambiar</p>}

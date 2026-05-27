@@ -6,7 +6,10 @@ from apps.monitoring.models import SurgicalMonitoring
 class SurgicalMonitoringSerializer(serializers.ModelSerializer):
     class Meta:
         model = SurgicalMonitoring
-        fields = ('id', 'surgery_type', 'surgery_date', 'report_frequency_hours', 'status')
+        fields = (
+            'id', 'surgery_type', 'surgery_date', 'home_release_date',
+            'report_frequency_hours', 'status',
+        )
 
 
 class PatientListSerializer(serializers.ModelSerializer):

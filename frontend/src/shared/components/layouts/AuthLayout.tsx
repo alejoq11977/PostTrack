@@ -70,7 +70,7 @@ export const AuthLayout = ({ children, title, subtitle, eyebrow, showLogout = fa
       </div>
 
       {/* RIGHT PANEL */}
-      <div className="flex-1 flex items-center justify-center p-6 sm:p-8 overflow-y-auto">
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
         <div className="w-full max-w-[420px] animate-in fade-in slide-in-from-bottom-4 duration-500">
 
           {/* Mobile Logo */}

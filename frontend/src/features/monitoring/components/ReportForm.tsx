@@ -1,3 +1,4 @@
+import { memo, useEffect, useState } from 'react';
 import { ArrowLeft, Check, ChevronRight, Info, UploadCloud, X, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/shared/utils/cn';
 import { useReportForm } from '../hooks/useReportForm';
@@ -7,14 +8,97 @@ interface ReportFormProps {
   monitoringId: string;
 }
 
+interface QuestionRowProps {
+  question: { id: number; text: string; instruction_text?: string | null };
+  index: number;
+  answer: 'yes' | 'no' | undefined;
+  expanded: boolean;
+  onAnswer: (id: number, value: 'yes' | 'no') => void;
+  onToggleInfo: (id: number) => void;
+}
+
+// Fila memoizada: al responder o desplegar info solo se re-renderiza la fila
+// afectada, no las 21 preguntas. Evita el jank al responder Sí/No.
+const QuestionRow = memo(({ question, index, answer, expanded, onAnswer, onToggleInfo }: QuestionRowProps) => (
+  <div className="py-4 first:pt-0 last:pb-0">
+    <div className="flex items-start gap-3 sm:gap-4">
+      <div className={cn(
+        "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5 transition-colors",
+        answer ? "bg-brand-100 text-brand-600" : "bg-slate-100 text-slate-400"
+      )}>
+        {answer ? <Check size={12} strokeWidth={3} /> : String(index + 1).padStart(2, '0')}
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <p className="text-[14px] text-slate-600 leading-relaxed">
+          {question.text} <span className="text-red-500">*</span>
+        </p>
+
+        {question.instruction_text && (
+          <button
+            type="button"
+            onClick={() => onToggleInfo(question.id)}
+            className="mt-1.5 inline-flex items-center gap-1 text-[12px] font-medium text-brand-500 hover:text-brand-600 transition-colors"
+          >
+            <Info size={13} className="shrink-0" />
+            {expanded ? 'Ocultar indicación' : '¿Cómo lo reviso?'}
+          </button>
+        )}
+
+        {question.instruction_text && expanded && (
+          <div className="mt-2 bg-brand-50/70 border border-brand-100 rounded-lg p-3 text-[12.5px] text-brand-800 leading-relaxed animate-in slide-in-from-top-2 duration-200">
+            {question.instruction_text}
+          </div>
+        )}
+      </div>
+
+      <div className="flex gap-1.5 shrink-0">
+        <button
+          onClick={() => onAnswer(question.id, 'yes')}
+          className={cn("h-8 px-4 rounded-full border text-[12px] font-semibold transition-colors",
+            answer === 'yes' ? "bg-brand-50 border-brand-400 text-brand-600" : "bg-white border-slate-200 text-slate-400 hover:border-brand-200 hover:text-brand-500"
+          )}
+        >Sí</button>
+        <button
+          onClick={() => onAnswer(question.id, 'no')}
+          className={cn("h-8 px-4 rounded-full border text-[12px] font-semibold transition-colors",
+            answer === 'no' ? "bg-red-50 border-red-400 text-red-600" : "bg-white border-slate-200 text-slate-400 hover:border-red-200 hover:text-red-500"
+          )}
+        >No</button>
+      </div>
+    </div>
+  </div>
+));
+QuestionRow.displayName = 'QuestionRow';
+
+// Miniatura de imagen: crea el object URL DENTRO del efecto y lo guarda en estado,
+// liberándolo en la limpieza. Es la forma correcta bajo StrictMode (que monta el
+// efecto, lo limpia y lo vuelve a montar): así siempre queda una URL vigente.
+const ImagePreview = ({ file, onRemove }: { file: File; onRemove: () => void }) => {
+  const [url, setUrl] = useState('');
+  useEffect(() => {
+    const objectUrl = URL.createObjectURL(file);
+    setUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [file]);
+  return (
+    <>
+      {url && <img src={url} alt="Preview" className="absolute inset-0 w-full h-full object-cover" />}
+      <button onClick={onRemove} className="absolute top-2 right-2 w-7 h-7 bg-black/50 hover:bg-red-500 text-white rounded-full flex items-center justify-center backdrop-blur-sm transition-colors z-10">
+        <X size={14} strokeWidth={3} />
+      </button>
+    </>
+  );
+};
+
 export const ReportForm = ({ monitoringId }: ReportFormProps) => {
   const {
     formData, isLoading, step, setStep,
-    generalAnswers, setGeneralAnswers,
-    customAnswers, setCustomAnswers,
+    generalAnswers, setGeneralAnswer,
+    customAnswers, setCustomAnswer,
     medicalNotes, setMedicalNotes,
     images, handleImageUpload, removeImage,
-    expandedInfo, setExpandedInfo,
+    expandedInfo, toggleExpandedInfo,
     isSubmitting, isSuccess,
     isStep1Complete, isStep2Complete,
     handleSubmit, navigate
@@ -79,53 +163,15 @@ export const ReportForm = ({ monitoringId }: ReportFormProps) => {
 
               <div className="divide-y divide-slate-100">
                 {general_questions.map((q, idx) => (
-                  <div key={q.id} className="py-4 first:pt-0 last:pb-0">
-                    <div className="flex items-start gap-4">
-                      <div className={cn(
-                        "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5 transition-colors",
-                        generalAnswers[q.id] ? "bg-brand-100 text-brand-600" : "bg-slate-100 text-slate-400"
-                      )}>
-                        {generalAnswers[q.id] ? <Check size={12} strokeWidth={3} /> : String(idx + 1).padStart(2, '0')}
-                      </div>
-                      
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between gap-4">
-                          <span className="text-[14px] text-slate-600 leading-relaxed">
-                            {q.text} <span className="text-red-500">*</span>
-                          </span>
-                          {q.instruction_text && (
-                            <button 
-                              onClick={() => setExpandedInfo(expandedInfo === q.id ? null : q.id)}
-                              className="text-slate-300 hover:text-brand-500 transition-colors mt-0.5 shrink-0"
-                            >
-                              <Info size={18} />
-                            </button>
-                          )}
-                        </div>
-                        
-                        {q.instruction_text && expandedInfo === q.id && (
-                          <div className="mt-2.5 bg-slate-50/80 border border-slate-100 rounded-lg p-3 text-[12.5px] text-slate-500 animate-in slide-in-from-top-2 duration-200">
-                            {q.instruction_text}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex gap-1.5 shrink-0">
-                        <button 
-                          onClick={() => setGeneralAnswers(prev => ({ ...prev, [q.id]: 'yes' }))}
-                          className={cn("h-8 px-4 rounded-full border text-[12px] font-semibold transition-all",
-                            generalAnswers[q.id] === 'yes' ? "bg-brand-50 border-brand-400 text-brand-600" : "bg-white border-slate-200 text-slate-400 hover:border-brand-200 hover:text-brand-500"
-                          )}
-                        >Sí</button>
-                        <button 
-                          onClick={() => setGeneralAnswers(prev => ({ ...prev, [q.id]: 'no' }))}
-                          className={cn("h-8 px-4 rounded-full border text-[12px] font-semibold transition-all",
-                            generalAnswers[q.id] === 'no' ? "bg-red-50 border-red-400 text-red-600" : "bg-white border-slate-200 text-slate-400 hover:border-red-200 hover:text-red-500"
-                          )}
-                        >No</button>
-                      </div>
-                    </div>
-                  </div>
+                  <QuestionRow
+                    key={q.id}
+                    question={q}
+                    index={idx}
+                    answer={generalAnswers[q.id]}
+                    expanded={expandedInfo === q.id}
+                    onAnswer={setGeneralAnswer}
+                    onToggleInfo={toggleExpandedInfo}
+                  />
                 ))}
               </div>
             </div>
@@ -156,18 +202,19 @@ export const ReportForm = ({ monitoringId }: ReportFormProps) => {
               </div>
 
               {monitoring.custom_questions.map((cq) => (
-                <div key={cq.id} className="space-y-1.5">
-                  <label className="block text-[13.5px] font-semibold text-slate-800 flex justify-between items-center">
-                    <span>{cq.text} <span className="text-red-500">*</span></span>
-                    {cq.instruction_text && (
-                      <span className="text-[11px] font-normal text-brand-600 bg-brand-50 border border-brand-100 px-2.5 py-1 rounded-md flex items-center gap-1.5">
-                        <Info size={12} /> {cq.instruction_text}
-                      </span>
-                    )}
+                <div key={cq.id} className="space-y-2">
+                  <label className="block text-[13.5px] font-semibold text-slate-800 leading-relaxed">
+                    {cq.text} <span className="text-red-500">*</span>
                   </label>
-                  <textarea 
+                  {cq.instruction_text && (
+                    <div className="flex items-start gap-2 bg-brand-50/70 border border-brand-100 rounded-lg px-3 py-2 text-[12px] text-brand-800 leading-relaxed">
+                      <Info size={13} className="shrink-0 mt-0.5" />
+                      <span>{cq.instruction_text}</span>
+                    </div>
+                  )}
+                  <textarea
                     value={customAnswers[cq.id] || ''}
-                    onChange={(e) => setCustomAnswers(prev => ({ ...prev, [cq.id]: e.target.value }))}
+                    onChange={(e) => setCustomAnswer(cq.id, e.target.value)}
                     className="w-full min-h-[90px] p-3 border border-slate-200 rounded-xl text-sm outline-none focus:border-brand-400 focus:ring-[3px] focus:ring-brand-400/15 transition-all resize-y"
                     placeholder="Describa detalladamente..."
                   ></textarea>
@@ -220,12 +267,7 @@ export const ReportForm = ({ monitoringId }: ReportFormProps) => {
                 {[0, 1, 2, 3].map((index) => (
                   <div key={index} className="relative h-36 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 hover:border-brand-400 hover:bg-brand-50 transition-colors flex flex-col items-center justify-center overflow-hidden group">
                     {images[index] ? (
-                      <>
-                        <img src={URL.createObjectURL(images[index]!)} alt="Preview" className="absolute inset-0 w-full h-full object-cover" />
-                        <button onClick={() => removeImage(index)} className="absolute top-2 right-2 w-7 h-7 bg-black/50 hover:bg-red-500 text-white rounded-full flex items-center justify-center backdrop-blur-sm transition-colors">
-                          <X size={14} strokeWidth={3} />
-                        </button>
-                      </>
+                      <ImagePreview file={images[index]!} onRemove={() => removeImage(index)} />
                     ) : (
                       <>
                         <UploadCloud size={28} className="text-slate-300 group-hover:text-brand-400 mb-2 transition-colors" strokeWidth={1.5} />

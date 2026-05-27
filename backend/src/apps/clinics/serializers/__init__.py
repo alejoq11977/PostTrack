@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from ..models import (
-    Clinic, VetClinic, DataPolicy,
+    Clinic, ClinicMembership, DataPolicy,
     DataAuthorization, DataTreatmentAcceptance, ClinicAuditLog
 )
 
@@ -20,19 +20,19 @@ class ClinicMinimalSerializer(serializers.ModelSerializer):
 
 class VetClinicSerializer(serializers.ModelSerializer):
     clinic = ClinicMinimalSerializer(read_only=True)
-    veterinarian_name = serializers.CharField(source='veterinarian.full_name', read_only=True)
-    veterinarian_role = serializers.CharField(source='veterinarian.role', read_only=True)
+    user_name = serializers.CharField(source='user.full_name', read_only=True)
+    user_role = serializers.CharField(source='user.role', read_only=True)
 
     class Meta:
-        model = VetClinic
-        fields = ['id', 'veterinarian', 'veterinarian_name', 'veterinarian_role', 'clinic', 'is_active', 'linked_at', 'unlinked_at']
+        model = ClinicMembership
+        fields = ['id', 'user', 'user_name', 'user_role', 'role', 'clinic', 'is_active', 'linked_at', 'unlinked_at']
         read_only_fields = ['id', 'linked_at', 'unlinked_at']
 
 
 class VetClinicCreateSerializer(serializers.ModelSerializer):
     class Meta:
-        model = VetClinic
-        fields = ['veterinarian', 'clinic']
+        model = ClinicMembership
+        fields = ['user', 'clinic']
 
 
 class DataPolicySerializer(serializers.ModelSerializer):

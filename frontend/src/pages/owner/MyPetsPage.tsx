@@ -6,21 +6,21 @@ export const MyPetsPage = () => {
   const { patients, isLoading } = useMyPets();
   const navigate = useNavigate();
 
-  if (isLoading) return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+if (isLoading) return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 max-w-[1400px] mx-auto">
       {[1, 2].map(i => (
-        <div key={i} className="animate-pulse rounded-xl bg-slate-100 aspect-[4/3]" />
+        <div key={i} className="animate-pulse rounded-xl bg-slate-100 aspect-square" />
       ))}
     </div>
   );
 
   return (
     <div className="animate-in fade-in duration-500">
-      <div className="mb-8">
-        <h1 className="text-[24px] font-display font-semibold text-slate-800 tracking-tight">
+      <div className="mb-6">
+        <h1 className="text-2xl font-display font-semibold text-slate-800 tracking-tight">
           Mis Mascotas
         </h1>
-        <p className="text-slate-400 text-[13px] mt-1">
+        <p className="text-slate-400 text-sm mt-1">
           Seleccione una mascota para ver sus seguimientos postoperatorios.
         </p>
       </div>
@@ -30,7 +30,7 @@ export const MyPetsPage = () => {
           <p className="text-slate-500">No tiene mascotas registradas actualmente.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {patients.map((patient) => (
             <PetCard
               key={patient.id}

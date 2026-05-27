@@ -15,8 +15,11 @@ def get_report_history_for_monitoring(monitoring_id: int, owner):
 def save_report_with_answers(monitoring, medical_notes, status, general_answers: dict, custom_answers: dict) -> Report:
     """
     Guarda el reporte y sus respuestas en la base de datos de forma masiva.
-    Calcula automáticamente el nivel de riesgo.
+    Calcula automáticamente el nivel de riesgo según la ventana temporal
+    (medida desde la cirugía).
     """
+    from django.utils import timezone
+
     answers_for_risk = []
 
     for question_id, value in general_answers.items():
@@ -25,7 +28,11 @@ def save_report_with_answers(monitoring, medical_notes, status, general_answers:
             AnswerInput(question_id=int(question_id), answer=answer_value)
         )
 
-    risk_result = evaluate_risk(answers_for_risk)
+    hours_since_surgery = None
+    if monitoring.surgery_date:
+        hours_since_surgery = (timezone.now() - monitoring.surgery_date).total_seconds() / 3600
+
+    risk_result = evaluate_risk(answers_for_risk, hours_since_surgery=hours_since_surgery)
 
     report = Report.objects.create(
         monitoring=monitoring,

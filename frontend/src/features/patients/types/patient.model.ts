@@ -4,8 +4,9 @@ export interface SurgicalMonitoring {
   id: number;
   surgery_type: string;
   surgery_date: string;
+  home_release_date: string | null;
   report_frequency_hours: number;
-  status: MonitoringStatus; 
+  status: MonitoringStatus;
 }
 
 export interface Patient {

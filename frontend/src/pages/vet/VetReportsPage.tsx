@@ -97,20 +97,11 @@ export const VetReportsPage = () => {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-[24px] font-display font-semibold text-slate-800 tracking-tight">
+            <h1 className="text-[28px] font-display font-semibold text-slate-800 tracking-tight">
               Reportes
             </h1>
-            {monitoringId && (
-              <button
-                onClick={() => setSearchParams({})}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-100 text-brand-700 rounded-full text-xs font-medium hover:bg-brand-200 transition-colors"
-              >
-                <X size={14} />
-                Filtrado por seguimiento
-              </button>
-            )}
           </div>
-          <p className="text-slate-400 text-[13px] mt-1">
+          <p className="text-slate-400 text-sm mt-1">
             {lastUpdated
               ? `Actualizado: ${lastUpdated.toLocaleTimeString()}`
               : 'Cargando...'}
@@ -119,9 +110,9 @@ export const VetReportsPage = () => {
         <button
           onClick={fetchReports}
           disabled={isLoading}
-          className="flex items-center gap-2 px-4 py-2 bg-brand-500 hover:bg-brand-600 disabled:bg-slate-300 text-white text-sm font-medium rounded-lg transition-colors"
+          className="flex items-center gap-2 px-5 py-2.5 bg-brand-500 hover:bg-brand-600 disabled:bg-slate-300 text-white text-sm font-medium rounded-xl transition-colors"
         >
-          <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
+          <RefreshCw size={18} className={isLoading ? 'animate-spin' : ''} />
           Recargar
         </button>
       </div>

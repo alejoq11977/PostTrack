@@ -1,15 +1,26 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { useClinic } from '@/features/clinics/context/ClinicContext';
 import { authService } from '@/features/auth/api/auth.service';
 import { User, Mail, CreditCard, Phone, MapPin, AlertTriangle } from 'lucide-react';
 
 export const ProfilePage = () => {
   const { user, reloadUser, logout } = useAuth();
+  const { activeClinic } = useClinic();
 
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDeactivating, setIsDeactivating] = useState(false);
+
+  // Re-fetch the profile scoped to the active clinic (each clinic keeps its own
+  // copy). Without this, "Mi perfil" would show the stale login-time data and
+  // not reflect what a vet edited for this clinic, nor switch when the clinic changes.
+  useEffect(() => {
+    if (activeClinic?.id) {
+      reloadUser();
+    }
+  }, [activeClinic?.id]);
 
   useEffect(() => {
     if (user) {

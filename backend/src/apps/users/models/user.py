@@ -41,7 +41,7 @@ class User(AbstractBaseUser, PermissionsMixin, AuditableModel):
         null=True,
         help_text="Tipo de documento de identificación"
     )
-    identification_number = models.CharField(max_length=50, unique=True, blank=True, null=True)
+    identification_number = models.CharField(max_length=50, blank=True, null=True)
     
     phone_number = models.CharField(max_length=50, blank=True, null=True)
     address = models.CharField(max_length=255, blank=True, null=True)

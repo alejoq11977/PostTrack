@@ -1,7 +1,7 @@
 from django.contrib import admin
 from unfold.admin import ModelAdmin
 from .models import (
-    Clinic, VetClinic, DataPolicy,
+    Clinic, ClinicMembership, DataPolicy,
     DataAuthorization, DataTreatmentAcceptance, ClinicAuditLog
 )
 
@@ -14,29 +14,32 @@ class ClinicAdmin(ModelAdmin):
     ordering = ['name']
 
 
-@admin.register(VetClinic)
-class VetClinicAdmin(ModelAdmin):
-    list_display = ['veterinarian', 'clinic', 'is_active', 'linked_at', 'unlinked_at']
-    list_filter = ['is_active', 'clinic']
-    search_fields = ['veterinarian__full_name', 'veterinarian__email', 'clinic__name']
-    autocomplete_fields = ['veterinarian', 'clinic']
+@admin.register(ClinicMembership)
+class ClinicMembershipAdmin(ModelAdmin):
+    list_display = ['user', 'role', 'clinic', 'is_active', 'linked_at', 'unlinked_at']
+    list_filter = ['is_active', 'role', 'clinic']
+    search_fields = ['user__full_name', 'user__email', 'full_name', 'identification_number', 'clinic__name']
+    autocomplete_fields = ['user', 'clinic']
     ordering = ['-linked_at']
 
     fieldsets = (
         ('Vínculo', {
-            'fields': ('veterinarian', 'clinic', 'is_active')
+            'fields': ('user', 'role', 'clinic', 'is_active')
+        }),
+        ('Perfil en esta clínica', {
+            'fields': ('full_name', 'identification_type', 'identification_number', 'phone_number', 'address')
         }),
     )
 
     readonly_fields = ['linked_at', 'unlinked_at']
 
-    actions = ['unlink_veterinarians']
+    actions = ['unlink_members']
 
-    @admin.action(description='Desvincular veterinarios seleccionados')
-    def unlink_veterinarians(self, request, queryset):
-        for vet_clinic in queryset.filter(is_active=True):
-            vet_clinic.unlink()
-        self.message_user(request, f"{queryset.filter(is_active=True).count()} veterinario(s) desvinculado(s).")
+    @admin.action(description='Desvincular miembros seleccionados')
+    def unlink_members(self, request, queryset):
+        for membership in queryset.filter(is_active=True):
+            membership.unlink()
+        self.message_user(request, f"{queryset.filter(is_active=True).count()} miembro(s) desvinculado(s).")
 
 
 @admin.register(DataPolicy)

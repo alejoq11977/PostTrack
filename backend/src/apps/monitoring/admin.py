@@ -1,8 +1,9 @@
 from django import forms
 from django.db import models
 from django.contrib import admin
-from unfold.admin import ModelAdmin
+from unfold.admin import ModelAdmin, TabularInline
 from .models import SurgicalMonitoring, GeneralQuestion, CustomQuestion, Report, Answer, VisualEvidence
+from apps.patients.models import FactorWindowRisk
 
 class SurgicalMonitoringAdminForm(forms.ModelForm):
     surgery_date = forms.SplitDateTimeField(
@@ -28,10 +29,21 @@ class SurgicalMonitoringAdmin(ModelAdmin):
     autocomplete_fields = ['patient']
 
 
+class FactorWindowRiskInline(TabularInline):
+    """Riesgo de este factor en cada ventana temporal (editable desde la pregunta)."""
+    model = FactorWindowRisk
+    extra = 0
+    fields = ('window', 'risk_level')
+    autocomplete_fields = ['window']
+
+
 @admin.register(GeneralQuestion)
 class GeneralQuestionAdmin(ModelAdmin):
-    list_display = ('text', 'associated_risk', 'is_active', 'instruction_text')
+    list_display = ('text', 'factor', 'associated_risk', 'is_active')
     list_filter = ('associated_risk', 'is_active')
+    search_fields = ('text', 'factor')
+    list_editable = ('factor',)
+    inlines = [FactorWindowRiskInline]
 
 @admin.register(CustomQuestion)
 class CustomQuestionAdmin(ModelAdmin):

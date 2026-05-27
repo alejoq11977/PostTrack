@@ -1,7 +1,8 @@
+import re
 from rest_framework import serializers
 from apps.users.models import User
 from apps.patients.models import Patient
-from apps.monitoring.models import SurgicalMonitoring, Report
+from apps.monitoring.models import SurgicalMonitoring, Report, CustomQuestion
 
 
 class AnswerSerializer(serializers.Serializer):
@@ -104,6 +105,16 @@ class VetReportDetailSerializer(serializers.ModelSerializer):
 
 
 class VetOwnerSerializer(serializers.ModelSerializer):
+    """
+    Represents an owner *as seen by the selected clinic*: the profile fields come
+    from that clinic's ClinicMembership (its own per-clinic copy), never from the
+    global User — so one clinic never sees another clinic's data (Ley 1581).
+    """
+    full_name = serializers.SerializerMethodField()
+    identification_type = serializers.SerializerMethodField()
+    identification_number = serializers.SerializerMethodField()
+    phone_number = serializers.SerializerMethodField()
+    address = serializers.SerializerMethodField()
     patients_count = serializers.SerializerMethodField()
     patients = serializers.SerializerMethodField()
 
@@ -114,20 +125,52 @@ class VetOwnerSerializer(serializers.ModelSerializer):
             'phone_number', 'address', 'patients_count', 'patients', 'created_at'
         ]
 
-    def get_clinic_ids(self):
-        return self.context.get('clinic_ids', [])
+    def _clinic_id(self):
+        ids = self.context.get('clinic_ids', [])
+        return ids[0] if ids else None
+
+    def _membership(self, obj):
+        cid = self._clinic_id()
+        if not cid:
+            return None
+        cache = self.context.setdefault('_membership_cache', {})
+        key = (obj.id, cid)
+        if key not in cache:
+            from apps.clinics.models import ClinicMembership
+            cache[key] = ClinicMembership.objects.filter(user=obj, clinic_id=cid).first()
+        return cache[key]
+
+    def get_full_name(self, obj):
+        m = self._membership(obj)
+        return (m.full_name if m and m.full_name else obj.full_name)
+
+    def get_identification_type(self, obj):
+        m = self._membership(obj)
+        return ((m.identification_type if m else obj.identification_type) or '')
+
+    def get_identification_number(self, obj):
+        m = self._membership(obj)
+        return (m.identification_number if m else obj.identification_number)
+
+    def get_phone_number(self, obj):
+        m = self._membership(obj)
+        return (m.phone_number if m else obj.phone_number)
+
+    def get_address(self, obj):
+        m = self._membership(obj)
+        return (m.address if m else obj.address)
 
     def get_patients_count(self, obj):
-        clinic_ids = self.get_clinic_ids()
-        if not clinic_ids:
+        cid = self._clinic_id()
+        if not cid:
             return 0
-        return obj.patients.filter(clinic_id__in=clinic_ids, is_active=True).count()
+        return obj.patients.filter(clinic_id=cid, is_active=True).count()
 
     def get_patients(self, obj):
-        clinic_ids = self.get_clinic_ids()
-        if not clinic_ids:
+        cid = self._clinic_id()
+        if not cid:
             return []
-        patients = obj.patients.filter(clinic_id__in=clinic_ids, is_active=True)
+        patients = obj.patients.filter(clinic_id=cid, is_active=True)
         return [
             {
                 'id': p.id,
@@ -143,6 +186,9 @@ class VetOwnerSerializer(serializers.ModelSerializer):
 
 
 class VetOwnerCreateSerializer(serializers.ModelSerializer):
+    # Declared explicitly so DRF does NOT auto-add the model's unique-email validator.
+    # Registering an existing email must LINK the account (idempotent), not fail validation.
+    email = serializers.EmailField()
     password = serializers.CharField(write_only=True, required=False, allow_blank=True)
     confirm_password = serializers.CharField(write_only=True, required=False, allow_blank=True)
     identification_type = serializers.ChoiceField(
@@ -191,40 +237,148 @@ class VetOwnerCreateSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        import re
         from firebase_admin import auth as firebase_auth
+        from apps.clinics.models import ClinicMembership
+        from apps.core.services import email as email_service
 
-        identification_type = validated_data.pop('identification_type')
-        password = validated_data.pop('password', None)
-        confirm_password = validated_data.pop('confirm_password', None)
+        request = self.context['request']
+        clinic_ids = self.context.get('clinic_ids', [])
+        if not clinic_ids:
+            raise serializers.ValidationError({'clinic': 'No hay clínica seleccionada.'})
+        clinic_id = clinic_ids[0]
 
+        identification_type = validated_data.pop('identification_type', None)
+        validated_data.pop('password', None)         # the clinic NEVER sets the password
+        validated_data.pop('confirm_password', None)
+
+        email = validated_data['email']
+        full_name = validated_data.get('full_name', '')
         identification_number = validated_data.get('identification_number')
-        if identification_number is None or identification_number.strip() == '':
-            validated_data.pop('identification_number', None)
+        phone_number = validated_data.get('phone_number')
+        address = validated_data.get('address')
 
-        final_password = password.strip() if password and password.strip() else f'.{identification_number}@'
+        # --- Resolve the global identity, idempotently by email ---
+        # No global existence is exposed to the clinic: the response is identical
+        # whether or not the person already existed (no existence leak, Ley 1581).
+        user = User.objects.filter(email__iexact=email).first()
+        is_new_account = user is None
 
-        firebase_uid = None
-        try:
-            firebase_user = firebase_auth.create_user(
-                email=validated_data['email'],
-                password=final_password,
-                display_name=validated_data.get('full_name', ''),
+        # Already registered in THIS clinic? Block — re-registering must not silently
+        # overwrite the existing owner's per-clinic profile. (Linking the same person to
+        # a DIFFERENT clinic is still allowed below, without revealing where else they exist.)
+        if user is not None and ClinicMembership.objects.filter(
+            user=user, clinic_id=clinic_id, is_active=True
+        ).exists():
+            raise serializers.ValidationError(
+                {'email': 'Ya existe un propietario con este correo en esta clínica.'}
             )
-            firebase_uid = firebase_user.uid
-        except firebase_auth.EmailAlreadyExistsError:
-            existing_user = firebase_auth.get_user_by_email(validated_data['email'])
-            firebase_uid = existing_user.uid
-            firebase_auth.update_user(existing_user.uid, password=final_password)
 
-        user = User(**validated_data)
-        user.set_password(final_password)
-        user.role = 'OWNER'
-        user.managed_by = self.context['request'].user
-        user.firebase_uid = firebase_uid
-        user.identification_type = identification_type
-        user.save()
+        if user is None:
+            firebase_uid = None
+            try:
+                firebase_user = firebase_auth.create_user(email=email, display_name=full_name)
+                firebase_uid = firebase_user.uid
+            except firebase_auth.EmailAlreadyExistsError:
+                # Identity exists in Firebase but not yet in Django → link it; never reset its password.
+                firebase_uid = firebase_auth.get_user_by_email(email).uid
+                is_new_account = False
+            except Exception:
+                firebase_uid = None
+
+            user = User.objects.create(
+                email=email,
+                full_name=full_name,
+                role='OWNER',
+                firebase_uid=firebase_uid,
+                managed_by=request.user,
+                identification_type=identification_type,
+                identification_number=identification_number,
+                phone_number=phone_number,
+                address=address,
+                is_active=True,
+                # The owner sets their OWN password via the activation email, so there is
+                # no clinic-assigned temporary password to force-change on first login.
+                password_changed=True,
+            )
+            user.set_unusable_password()  # owner sets their own via the activation email
+            user.save(update_fields=['password'])
+        # else: the user already exists globally → reuse as-is. Never reset password or role.
+
+        # --- Per-clinic membership + profile (idempotent for this clinic) ---
+        ClinicMembership.objects.update_or_create(
+            user=user,
+            clinic_id=clinic_id,
+            defaults={
+                'role': 'OWNER',
+                'is_active': True,
+                'unlinked_at': None,
+                'full_name': full_name,
+                'identification_type': identification_type,
+                'identification_number': identification_number,
+                'phone_number': phone_number,
+                'address': address,
+            },
+        )
+
+        # --- Notify the person. Email failures must never break registration nor leak. ---
+        try:
+            if is_new_account:
+                email_service.send_owner_activation_email(user, clinic_id)
+            else:
+                email_service.send_clinic_added_email(user, clinic_id)
+        except Exception:
+            pass
+
         return user
+
+    def to_representation(self, instance):
+        # Echo back the per-clinic profile (what THIS clinic just stored), never the
+        # global canonical, so the response is identical regardless of prior existence.
+        from apps.clinics.models import ClinicMembership
+        clinic_ids = self.context.get('clinic_ids', [])
+        cid = clinic_ids[0] if clinic_ids else None
+        m = ClinicMembership.objects.filter(user=instance, clinic_id=cid).first() if cid else None
+        return {
+            'id': instance.id,
+            'email': instance.email,
+            'full_name': (m.full_name if m and m.full_name else instance.full_name),
+            'identification_type': ((m.identification_type if m else instance.identification_type) or ''),
+            'identification_number': (m.identification_number if m else instance.identification_number),
+            'phone_number': (m.phone_number if m else instance.phone_number),
+            'address': (m.address if m else instance.address),
+        }
+
+
+class VetOwnerUpdateSerializer(serializers.Serializer):
+    """
+    Vet edits an owner's profile. Writes ONLY to this clinic's ClinicMembership
+    (its own per-clinic copy), never to the global User or other clinics' copies.
+    """
+    full_name = serializers.CharField(required=False, allow_blank=True)
+    identification_type = serializers.CharField(required=False, allow_blank=True)
+    identification_number = serializers.CharField(required=False, allow_blank=True)
+    phone_number = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    address = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+    def update(self, instance, validated_data):
+        from apps.clinics.models import ClinicMembership
+        clinic_ids = self.context.get('clinic_ids', [])
+        clinic_id = clinic_ids[0] if clinic_ids else None
+        if not clinic_id:
+            raise serializers.ValidationError({'clinic': 'No hay clínica seleccionada.'})
+        membership = ClinicMembership.objects.filter(
+            user=instance, clinic_id=clinic_id, is_active=True
+        ).first()
+        if not membership:
+            raise serializers.ValidationError({'owner': 'El propietario no pertenece a esta clínica.'})
+        for field in ('full_name', 'identification_type', 'identification_number', 'phone_number', 'address'):
+            if field in validated_data:
+                setattr(membership, field, validated_data[field])
+        membership.save()
+        return instance
+
+    def to_representation(self, instance):
+        return VetOwnerSerializer(instance, context=self.context).data
 
 
 class VetPatientSerializer(serializers.ModelSerializer):
@@ -244,79 +398,54 @@ class VetPatientSerializer(serializers.ModelSerializer):
 class VetPatientCreateSerializer(serializers.ModelSerializer):
     owner_id = serializers.IntegerField(write_only=True, required=True)
     breed = serializers.CharField(required=False, allow_blank=True, default='')
-    birth_date = serializers.DateField(required=False, allow_null=True)
+    birth_date = serializers.DateField(required=True)
 
     class Meta:
         model = Patient
         fields = ['name', 'species', 'breed', 'birth_date', 'current_weight', 'photo_url', 'owner_id']
 
     def validate(self, attrs):
+        from apps.clinics.models import ClinicMembership
         owner_id = attrs.get('owner_id')
         clinic_ids = self.context.get('clinic_ids', [])
         if not clinic_ids:
-            raise serializers.ValidationError(
-                {'clinic': 'No clinic access. Cannot create patient.'}
-            )
+            raise serializers.ValidationError({'clinic': 'No hay clínica seleccionada.'})
+        clinic_id = clinic_ids[0]
 
         try:
             owner = User.objects.get(id=owner_id, role='OWNER')
         except User.DoesNotExist:
+            raise serializers.ValidationError({'owner_id': 'Propietario no encontrado o rol inválido.'})
+
+        # The owner must be a member of THIS clinic (registered here first).
+        if not ClinicMembership.objects.filter(user=owner, clinic_id=clinic_id, is_active=True).exists():
             raise serializers.ValidationError(
-                {'owner_id': 'Owner not found or invalid role.'}
+                {'owner_id': 'El propietario no está registrado en esta clínica. Regístralo primero.'}
             )
-
-        has_patients_in_clinic = Patient.objects.filter(
-            owner=owner,
-            clinic_id__in=clinic_ids,
-            is_active=True
-        ).exists()
-
-        if not has_patients_in_clinic:
-            existing_patients = Patient.objects.filter(owner=owner, is_active=True).count()
-            if existing_patients > 0:
-                raise serializers.ValidationError(
-                    {'owner_id': 'This owner has patients in other clinics. Owner must have existing patients in this clinic to add more.'}
-                )
 
         return attrs
 
     def create(self, validated_data):
-        from apps.clinics.models import VetClinic
         owner_id = validated_data.pop('owner_id', None)
         clinic_ids = self.context.get('clinic_ids', [])
-
         if not clinic_ids:
-            raise serializers.ValidationError(
-                {'clinic': 'No clinic access. Cannot create patient.'}
-            )
-
-        vet_clinic = VetClinic.objects.filter(
-            veterinarian=self.context['request'].user,
-            is_active=True,
-            clinic_id__in=clinic_ids
-        ).first()
-
-        if not vet_clinic:
-            raise serializers.ValidationError(
-                {'clinic': 'You do not have access to any clinic.'}
-            )
-
-        clinic = vet_clinic.clinic
+            raise serializers.ValidationError({'clinic': 'No hay clínica seleccionada.'})
+        clinic_id = clinic_ids[0]
 
         birth_date = validated_data.get('birth_date')
         if birth_date is None or birth_date == '':
             validated_data.pop('birth_date', None)
 
-        if owner_id:
-            owner = User.objects.get(id=owner_id)
-            return Patient.objects.create(owner=owner, clinic=clinic, **validated_data)
+        if not owner_id:
+            raise serializers.ValidationError({'owner_id': 'Se requiere el propietario.'})
 
-        raise serializers.ValidationError(
-            {'owner_id': 'Owner is required to create a patient.'}
-        )
+        owner = User.objects.get(id=owner_id)
+        return Patient.objects.create(owner=owner, clinic_id=clinic_id, **validated_data)
 
 
 class VetPatientUpdateSerializer(serializers.ModelSerializer):
+    breed = serializers.CharField(required=False, allow_blank=True, default='')
+
     class Meta:
         model = Patient
         fields = ['name', 'species', 'breed', 'birth_date', 'current_weight', 'photo_url']
@@ -336,27 +465,69 @@ class VetMonitoringSerializer(serializers.ModelSerializer):
     owner_email = serializers.EmailField(source='patient.owner.email', read_only=True)
     owner_identification_number = serializers.CharField(source='patient.owner.identification_number', read_only=True)
     active_reports = serializers.SerializerMethodField()
+    days_since_surgery = serializers.SerializerMethodField()
+    days_since_release = serializers.SerializerMethodField()
 
     class Meta:
         model = SurgicalMonitoring
         fields = [
-            'id', 'surgery_type', 'surgery_date', 'report_frequency_hours',
-            'status', 'patient_name', 'owner_name', 'owner_email',
-            'owner_identification_number', 'active_reports'
+            'id', 'surgery_type', 'surgery_date', 'home_release_date', 'discharged_at',
+            'report_frequency_hours', 'status', 'patient_name', 'owner_name', 'owner_email',
+            'owner_identification_number', 'active_reports', 'days_since_surgery', 'days_since_release'
         ]
 
     def get_active_reports(self, obj):
         return obj.reports.filter(review_status='PENDING').count()
 
+    def get_days_since_surgery(self, obj):
+        if not obj.surgery_date:
+            return None
+        from django.utils import timezone
+        return (timezone.now().date() - obj.surgery_date.date()).days
+
+    def get_days_since_release(self, obj):
+        if not obj.home_release_date:
+            return None
+        from django.utils import timezone
+        return (timezone.now().date() - obj.home_release_date.date()).days
+
+
+class CustomQuestionInputSerializer(serializers.Serializer):
+    text = serializers.CharField(max_length=500)
+    instruction_text = serializers.CharField(
+        max_length=2000, required=False, allow_blank=True, default=''
+    )
+
 
 class VetMonitoringCreateSerializer(serializers.ModelSerializer):
     patient_id = serializers.IntegerField(write_only=True)
+    report_frequency_hours = serializers.IntegerField(
+        min_value=1,
+        error_messages={
+            'min_value': 'La frecuencia debe ser de al menos 1 hora.',
+            'invalid': 'Ingrese un número válido de horas.',
+        },
+    )
+    # Preguntas personalizadas que el propietario responderá en cada reporte.
+    custom_questions = CustomQuestionInputSerializer(many=True, required=False, write_only=True)
 
     class Meta:
         model = SurgicalMonitoring
-        fields = ['id', 'patient_id', 'surgery_type', 'surgery_date', 'report_frequency_hours', 'status']
+        fields = ['id', 'patient_id', 'surgery_type', 'surgery_date', 'home_release_date',
+                  'report_frequency_hours', 'status', 'custom_questions']
 
     def create(self, validated_data):
         patient_id = validated_data.pop('patient_id')
+        custom_questions = validated_data.pop('custom_questions', [])
         patient = Patient.objects.get(id=patient_id)
-        return SurgicalMonitoring.objects.create(patient=patient, **validated_data)
+        monitoring = SurgicalMonitoring.objects.create(patient=patient, **validated_data)
+        for cq in custom_questions:
+            text = (cq.get('text') or '').strip()
+            if not text:
+                continue
+            CustomQuestion.objects.create(
+                monitoring=monitoring,
+                text=text,
+                instruction_text=(cq.get('instruction_text') or '').strip(),
+            )
+        return monitoring

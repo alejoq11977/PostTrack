@@ -3,8 +3,9 @@ import { Outlet, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useClinic } from '@/features/clinics/context/ClinicContext';
 import { Logo } from '../common/Logo';
-import { LogOut, Home, Users, Menu, X, UserPen, Building2, LayoutDashboard, FileText, Stethoscope } from 'lucide-react';
+import { LogOut, Home, Users, Menu, X, UserPen, Building2, LayoutDashboard, FileText, Stethoscope, Info } from 'lucide-react';
 import { ChangeClinicModal } from '../common/ChangeClinicModal';
+import { ClinicInfoModal } from '../common/ClinicInfoModal';
 
 export const MainLayout = () => {
   const { user, logout } = useAuth();
@@ -13,8 +14,14 @@ export const MainLayout = () => {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [showChangeClinicModal, setShowChangeClinicModal] = useState(false);
+  const [showClinicInfoModal, setShowClinicInfoModal] = useState(false);
 
   const hasMultipleClinics = clinics.length > 1;
+
+  // Usa el objeto completo de la lista (activeClinic puede venir como stub {id}).
+  const activeClinicFull = activeClinic
+    ? clinics.find((c) => c.id === activeClinic.id) ?? activeClinic
+    : null;
 
   const isVet = user?.role === 'VETERINARIAN' || user?.role === 'ADMIN';
 
@@ -220,27 +227,36 @@ export const MainLayout = () => {
           <div className="w-10" />
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 md:p-10">
-          <div className="max-w-5xl mx-auto">
+        <div className="flex-1 overflow-y-auto p-3 md:p-4">
+          <div className="max-w-full mx-0">
             {activeClinic && (
-              <div className="mb-6 flex items-center justify-between bg-brand-50 border border-brand-100 rounded-lg px-4 py-2.5">
-                <div className="flex items-center gap-2">
-                  <Building2 size={16} className="text-brand-600" />
-                  <span className="text-sm text-brand-700 font-medium">
+              <div className="mb-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 bg-brand-50 border border-brand-100 rounded-lg px-4 py-2.5">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Building2 size={16} className="text-brand-600 shrink-0" />
+                  <span className="text-sm text-brand-700 font-medium shrink-0">
                     Clínica:
                   </span>
-                  <span className="text-sm text-brand-800 font-semibold">
-                    {activeClinic.name}
+                  <span className="text-sm text-brand-800 font-semibold truncate">
+                    {activeClinicFull?.name || activeClinic.name}
                   </span>
                 </div>
-                {hasMultipleClinics && (
+                <div className="flex items-center gap-4 shrink-0">
                   <button
-                    onClick={handleChangeClinic}
-                    className="text-xs text-brand-600 hover:text-brand-800 font-medium underline"
+                    onClick={() => setShowClinicInfoModal(true)}
+                    className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-800 font-medium"
                   >
-                    Cambiar clínica
+                    <Info size={14} />
+                    Información de contacto
                   </button>
-                )}
+                  {hasMultipleClinics && (
+                    <button
+                      onClick={handleChangeClinic}
+                      className="text-xs text-brand-600 hover:text-brand-800 font-medium underline"
+                    >
+                      Cambiar clínica
+                    </button>
+                  )}
+                </div>
               </div>
             )}
             <Outlet />
@@ -254,6 +270,12 @@ export const MainLayout = () => {
             setShowChangeClinicModal(false);
             navigate('/select-clinic');
           }}
+        />
+      )}
+      {showClinicInfoModal && activeClinicFull && (
+        <ClinicInfoModal
+          clinic={activeClinicFull}
+          onClose={() => setShowClinicInfoModal(false)}
         />
       )}
     </div>

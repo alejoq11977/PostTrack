@@ -11,6 +11,8 @@ from .views import (
     VetPatientsCreateView,
     VetPatientsUpdateView,
     VetMonitoringsListView,
+    vet_monitoring_release,
+    vet_monitoring_discharge,
     vet_sse_alerts,
     vet_alerts_all,
     vet_missing_reports
@@ -30,6 +32,8 @@ urlpatterns = [
     path('patients/', VetPatientsCreateView.as_view(), name='patients-create'),
     path('patients/<int:pk>/', VetPatientsUpdateView.as_view(), name='patients-update'),
     path('monitorings/', VetMonitoringsListView.as_view(), name='monitorings-list'),
+    path('monitorings/<int:pk>/release/', vet_monitoring_release, name='monitorings-release'),
+    path('monitorings/<int:pk>/discharge/', vet_monitoring_discharge, name='monitorings-discharge'),
     path('alerts/stream/', vet_sse_alerts, name='alerts-stream'),
     path('alerts/all/', vet_alerts_all, name='alerts-all'),
     path('reports/missing/', vet_missing_reports, name='reports-missing'),

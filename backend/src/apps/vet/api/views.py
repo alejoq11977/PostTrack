@@ -13,18 +13,48 @@ from apps.monitoring.models import Report, SurgicalMonitoring
 from apps.monitoring.serializers.monitoring import ReportHistorySerializer
 from apps.patients.models import Patient
 from apps.users.models import User
-from apps.vet.serializers import VetReportSerializer, VetReportDetailSerializer, VetOwnerSerializer, VetOwnerCreateSerializer, VetPatientSerializer, VetPatientCreateSerializer, VetPatientUpdateSerializer, VetMonitoringSerializer, VetMonitoringCreateSerializer
-from apps.clinics.models import VetClinic
+from apps.vet.serializers import VetReportSerializer, VetReportDetailSerializer, VetOwnerSerializer, VetOwnerCreateSerializer, VetOwnerUpdateSerializer, VetPatientSerializer, VetPatientCreateSerializer, VetPatientUpdateSerializer, VetMonitoringSerializer, VetMonitoringCreateSerializer
+from apps.clinics.models import ClinicMembership
+
+
+def _selected_clinic_ids(request):
+    """
+    Scope every vet query to the SINGLE clinic the user is currently in.
+
+    The clinic is sent via the X-Clinic-Id header. We read it and validate it
+    against the authenticated user's active memberships HERE (at the DRF view
+    layer) — not in Django middleware — because Firebase auth runs at the view
+    layer, so request.user is only populated here. We scope to that one clinic
+    (never all of the user's clinics) so data never crosses between clinics.
+    """
+    cid = request.headers.get('X-Clinic-Id')
+    if not cid:
+        return []
+    try:
+        cid = int(cid)
+    except (TypeError, ValueError):
+        return []
+
+    user = getattr(request, 'user', None)
+    if not user or not getattr(user, 'is_authenticated', False):
+        return []
+
+    if getattr(user, 'role', None) == 'ADMIN':
+        from apps.clinics.models import Clinic
+        return [cid] if Clinic.objects.filter(id=cid, is_active=True).exists() else []
+
+    from apps.clinics.models import ClinicMembership
+    if ClinicMembership.objects.filter(user=user, clinic_id=cid, is_active=True).exists():
+        return [cid]
+    return []
 
 
 class ClinicFilteredMixin:
-    """Mixin that provides clinic filtering for all vet views."""
+    """Mixin that scopes vet views to the currently selected clinic."""
 
     def get_clinic_ids(self):
         if not hasattr(self, '_clinic_ids'):
-            self._clinic_ids = list(VetClinic.objects.filter(
-                veterinarian=self.request.user, is_active=True
-            ).values_list('clinic_id', flat=True))
+            self._clinic_ids = _selected_clinic_ids(self.request)
         return self._clinic_ids
 
     def get_serializer_context(self):
@@ -42,8 +72,7 @@ class VetReportsListView(ClinicFilteredMixin, generics.ListAPIView):
         return VetReportSerializer
 
     def get_queryset(self):
-        user = self.request.user
-        clinic_ids = VetClinic.objects.filter(veterinarian=user, is_active=True).values_list('clinic_id', flat=True)
+        clinic_ids = _selected_clinic_ids(self.request)
 
         queryset = Report.objects.filter(
             monitoring__patient__clinic_id__in=clinic_ids
@@ -72,8 +101,7 @@ class VetReportsDetailView(generics.RetrieveAPIView):
     lookup_field = 'pk'
 
     def get_queryset(self):
-        user = self.request.user
-        clinic_ids = VetClinic.objects.filter(veterinarian=user, is_active=True).values_list('clinic_id', flat=True)
+        clinic_ids = _selected_clinic_ids(self.request)
         return Report.objects.filter(
             monitoring__patient__clinic_id__in=clinic_ids
         ).select_related(
@@ -87,8 +115,7 @@ class VetReportsDetailView(generics.RetrieveAPIView):
 @permission_classes([IsAuthenticated])
 def vet_reports_validate(request, pk):
     try:
-        user = request.user
-        clinic_ids = VetClinic.objects.filter(veterinarian=user, is_active=True).values_list('clinic_id', flat=True)
+        clinic_ids = _selected_clinic_ids(request)
         report = Report.objects.get(pk=pk, monitoring__patient__clinic_id__in=clinic_ids)
     except Report.DoesNotExist:
         return Response({'error': 'Report not found'}, status=status.HTTP_404_NOT_FOUND)
@@ -107,8 +134,7 @@ def vet_reports_validate(request, pk):
 @permission_classes([IsAuthenticated])
 def vet_reports_mark_reviewed(request, pk):
     try:
-        user = request.user
-        clinic_ids = VetClinic.objects.filter(veterinarian=user, is_active=True).values_list('clinic_id', flat=True)
+        clinic_ids = _selected_clinic_ids(request)
         report = Report.objects.get(pk=pk, monitoring__patient__clinic_id__in=clinic_ids)
     except Report.DoesNotExist:
         return Response({'error': 'Report not found'}, status=status.HTTP_404_NOT_FOUND)
@@ -126,8 +152,7 @@ def vet_reports_stats(request):
     from django.utils import timezone
     from datetime import timedelta
 
-    user = request.user
-    clinic_ids = VetClinic.objects.filter(veterinarian=user, is_active=True).values_list('clinic_id', flat=True)
+    clinic_ids = _selected_clinic_ids(request)
 
     now = timezone.now()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -171,12 +196,13 @@ class VetOwnersListView(generics.ListCreateAPIView):
         return VetOwnerSerializer
 
     def get_queryset(self):
-        user = self.request.user
-        clinic_ids = VetClinic.objects.filter(veterinarian=user, is_active=True).values_list('clinic_id', flat=True)
+        clinic_ids = _selected_clinic_ids(self.request)
+        clinic_id = clinic_ids[0] if clinic_ids else None
 
         queryset = User.objects.filter(
             role='OWNER',
-            patients__clinic_id__in=clinic_ids
+            clinic_memberships__clinic_id=clinic_id,
+            clinic_memberships__is_active=True,
         ).distinct().order_by('-created_at')
 
         search = self.request.query_params.get('search', '')
@@ -191,34 +217,31 @@ class VetOwnersListView(generics.ListCreateAPIView):
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        user = self.request.user
-        clinic_ids = list(VetClinic.objects.filter(
-            veterinarian=user, is_active=True
-        ).values_list('clinic_id', flat=True))
-        context['clinic_ids'] = clinic_ids
+        context['clinic_ids'] = _selected_clinic_ids(self.request)
         return context
 
 
 class VetOwnerDetailView(generics.RetrieveUpdateAPIView):
     permission_classes = [IsAuthenticated]
-    serializer_class = VetOwnerSerializer
     lookup_field = 'pk'
 
+    def get_serializer_class(self):
+        if self.request.method in ('PUT', 'PATCH'):
+            return VetOwnerUpdateSerializer
+        return VetOwnerSerializer
+
     def get_queryset(self):
-        user = self.request.user
-        clinic_ids = VetClinic.objects.filter(veterinarian=user, is_active=True).values_list('clinic_id', flat=True)
+        clinic_ids = _selected_clinic_ids(self.request)
+        clinic_id = clinic_ids[0] if clinic_ids else None
         return User.objects.filter(
             role='OWNER',
-            patients__clinic_id__in=clinic_ids
+            clinic_memberships__clinic_id=clinic_id,
+            clinic_memberships__is_active=True,
         ).distinct()
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        user = self.request.user
-        clinic_ids = list(VetClinic.objects.filter(
-            veterinarian=user, is_active=True
-        ).values_list('clinic_id', flat=True))
-        context['clinic_ids'] = clinic_ids
+        context['clinic_ids'] = _selected_clinic_ids(self.request)
         return context
 
 
@@ -227,8 +250,7 @@ class VetPatientsSearchView(generics.ListAPIView):
     serializer_class = VetPatientSerializer
 
     def get_queryset(self):
-        user = self.request.user
-        clinic_ids = VetClinic.objects.filter(veterinarian=user, is_active=True).values_list('clinic_id', flat=True)
+        clinic_ids = _selected_clinic_ids(self.request)
 
         queryset = Patient.objects.filter(clinic_id__in=clinic_ids, is_active=True).select_related('owner')
 
@@ -260,8 +282,7 @@ class VetPatientsUpdateView(ClinicFilteredMixin, generics.UpdateAPIView):
     lookup_field = 'pk'
 
     def get_queryset(self):
-        user = self.request.user
-        clinic_ids = VetClinic.objects.filter(veterinarian=user, is_active=True).values_list('clinic_id', flat=True)
+        clinic_ids = _selected_clinic_ids(self.request)
         return Patient.objects.filter(clinic_id__in=clinic_ids, is_active=True)
 
 
@@ -274,11 +295,51 @@ class VetMonitoringsListView(generics.ListCreateAPIView):
         return VetMonitoringSerializer
 
     def get_queryset(self):
-        user = self.request.user
-        clinic_ids = VetClinic.objects.filter(veterinarian=user, is_active=True).values_list('clinic_id', flat=True)
+        clinic_ids = _selected_clinic_ids(self.request)
         return SurgicalMonitoring.objects.filter(
             patient__clinic_id__in=clinic_ids
         ).select_related('patient', 'patient__owner').order_by('-created_at')
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def vet_monitoring_release(request, pk):
+    """Marcar salida de la clínica (la mascota se va a casa). Inicia el agendamiento de reportes."""
+    clinic_ids = _selected_clinic_ids(request)
+    try:
+        monitoring = SurgicalMonitoring.objects.get(pk=pk, patient__clinic_id__in=clinic_ids)
+    except SurgicalMonitoring.DoesNotExist:
+        return Response({'error': 'Seguimiento no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    raw = request.data.get('home_release_date')
+    release_dt = timezone.now()
+    if raw:
+        from django.utils.dateparse import parse_datetime
+        parsed = parse_datetime(raw)
+        if parsed:
+            # El frontend envía un datetime-local sin zona; lo volvemos consciente.
+            if timezone.is_naive(parsed):
+                parsed = timezone.make_aware(parsed, timezone.get_current_timezone())
+            release_dt = parsed
+    monitoring.home_release_date = release_dt
+    monitoring.save(update_fields=['home_release_date'])
+    return Response({'status': 'released', 'home_release_date': monitoring.home_release_date})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def vet_monitoring_discharge(request, pk):
+    """Dar de alta / finalizar el seguimiento: deja de esperar reportes y bloquea al propietario."""
+    clinic_ids = _selected_clinic_ids(request)
+    try:
+        monitoring = SurgicalMonitoring.objects.get(pk=pk, patient__clinic_id__in=clinic_ids)
+    except SurgicalMonitoring.DoesNotExist:
+        return Response({'error': 'Seguimiento no encontrado'}, status=status.HTTP_404_NOT_FOUND)
+
+    monitoring.status = 'DISCHARGED'
+    monitoring.discharged_at = timezone.now()
+    monitoring.save(update_fields=['status', 'discharged_at'])
+    return Response({'status': 'discharged', 'discharged_at': monitoring.discharged_at})
 
 
 @permission_classes([AllowAny])
@@ -332,7 +393,20 @@ def vet_sse_alerts(request):
         )
 
     def event_stream():
-        clinic_ids = list(VetClinic.objects.filter(veterinarian=user, is_active=True).values_list('clinic_id', flat=True))
+        # EventSource can't send custom headers, so the selected clinic arrives as a
+        # query param (?clinic_id=). Validate it against the user's active memberships
+        # and scope to that single clinic. If none is provided we fall back to all of
+        # the user's clinics (frontend wiring pending in Fase 5).
+        user_clinic_ids = list(ClinicMembership.objects.filter(user=user, is_active=True).values_list('clinic_id', flat=True))
+        requested_clinic = request.GET.get('clinic_id')
+        try:
+            requested_clinic = int(requested_clinic) if requested_clinic else None
+        except (TypeError, ValueError):
+            requested_clinic = None
+        if requested_clinic and (getattr(user, 'role', None) == 'ADMIN' or requested_clinic in user_clinic_ids):
+            clinic_ids = [requested_clinic]
+        else:
+            clinic_ids = user_clinic_ids
 
         def get_reports_data_safe():
             try:
@@ -345,34 +419,59 @@ def vet_sse_alerts(request):
                     'monitoring__patient__owner'
                 )
 
-                high_risk = pending_reports.filter(calculated_risk='HIGH')
-                medium_risk = pending_reports.filter(calculated_risk='MEDIUM')
-                low_risk = pending_reports.filter(calculated_risk='LOW')
-                no_risk = pending_reports.filter(calculated_risk__isnull=True)
+                # Orden por prioridad de riesgo (ALTO→MEDIO→BAJO→sin dato) y, dentro
+                # de cada nivel, lo más reciente primero. Debe coincidir con
+                # vet_alerts_all para que el orden no "salte" al llegar el SSE.
+                high_risk = pending_reports.filter(calculated_risk='HIGH').order_by('-submitted_at')
+                medium_risk = pending_reports.filter(calculated_risk='MEDIUM').order_by('-submitted_at')
+                low_risk = pending_reports.filter(calculated_risk='LOW').order_by('-submitted_at')
+                no_risk = pending_reports.filter(calculated_risk__isnull=True).order_by('-submitted_at')
 
                 sorted_reports = list(high_risk) + list(medium_risk) + list(low_risk) + list(no_risk)
 
+                # Solo seguimientos ya dados de salida (en casa) y aún activos.
                 active_monitorings = SurgicalMonitoring.objects.filter(
                     patient__clinic_id__in=clinic_ids,
-                    status='ACTIVE'
+                    status='ACTIVE',
+                    home_release_date__isnull=False
                 ).select_related('patient', 'patient__owner')
-                missing_count = 0
+                missing_list = []
                 now = timezone.now()
                 for monitoring in active_monitorings:
                     last_report = monitoring.reports.order_by('-submitted_at').first()
-                    if last_report:
-                        expected_next = last_report.submitted_at + timedelta(hours=monitoring.report_frequency_hours)
-                    else:
-                        expected_next = monitoring.surgery_date + timedelta(hours=monitoring.report_frequency_hours)
+                    anchor = last_report.submitted_at if last_report else monitoring.home_release_date
+                    expected_next = anchor + timedelta(hours=monitoring.report_frequency_hours)
                     if now > expected_next:
-                        missing_count += 1
+                        days_since_surgery = (now.date() - monitoring.surgery_date.date()).days + 1 if monitoring.surgery_date else None
+                        days_since_release = (now.date() - monitoring.home_release_date.date()).days + 1
+                        missing_list.append({
+                            'id': monitoring.id,
+                            'patient_name': monitoring.patient.name,
+                            'patient_photo': monitoring.patient.photo_url,
+                            'owner_name': monitoring.patient.owner.full_name,
+                            'owner_phone': monitoring.patient.owner.phone_number,
+                            'owner_email': monitoring.patient.owner.email,
+                            'owner_identification_number': monitoring.patient.owner.identification_number,
+                            'surgery_type': monitoring.surgery_type,
+                            'surgery_date': monitoring.surgery_date.isoformat() if monitoring.surgery_date else None,
+                            'home_release_date': monitoring.home_release_date.isoformat(),
+                            'day_number': days_since_release,
+                            'days_since_surgery': days_since_surgery,
+                            'days_since_release': days_since_release,
+                            'report_frequency_hours': monitoring.report_frequency_hours,
+                            'last_report_at': last_report.submitted_at.isoformat() if last_report else None,
+                            'expected_at': expected_next.isoformat(),
+                            'minutes_overdue': int((now - expected_next).total_seconds() / 60),
+                        })
+                missing_list.sort(key=lambda x: x['minutes_overdue'], reverse=True)
 
                 return {
                     'type': 'reports_update',
                     'count': pending_reports.count(),
                     'alert_count': high_risk.count(),
-                    'missing_count': missing_count,
-                    'reports': VetReportSerializer(pending_reports.order_by('-submitted_at')[:20], many=True).data
+                    'missing_count': len(missing_list),
+                    'reports': VetReportSerializer(sorted_reports[:20], many=True).data,
+                    'missing_reports': missing_list[:20],
                 }
             except Exception as e:
                 print(f"[SSE] Error in get_reports_data_safe: {e}")
@@ -410,8 +509,7 @@ def vet_sse_alerts(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def vet_alerts_all(request):
-    user = request.user
-    clinic_ids = VetClinic.objects.filter(veterinarian=user, is_active=True).values_list('clinic_id', flat=True)
+    clinic_ids = _selected_clinic_ids(request)
 
     pending_reports = Report.objects.filter(
         monitoring__patient__clinic_id__in=clinic_ids,
@@ -422,10 +520,12 @@ def vet_alerts_all(request):
         'monitoring__patient__owner'
     )
 
-    high_risk = pending_reports.filter(calculated_risk='HIGH')
-    medium_risk = pending_reports.filter(calculated_risk='MEDIUM')
-    low_risk = pending_reports.filter(calculated_risk='LOW')
-    no_risk = pending_reports.filter(calculated_risk__isnull=True)
+    # Prioridad de riesgo (ALTO→MEDIO→BAJO→sin dato); dentro de cada nivel, lo
+    # más reciente primero. Mismo orden que el stream SSE.
+    high_risk = pending_reports.filter(calculated_risk='HIGH').order_by('-submitted_at')
+    medium_risk = pending_reports.filter(calculated_risk='MEDIUM').order_by('-submitted_at')
+    low_risk = pending_reports.filter(calculated_risk='LOW').order_by('-submitted_at')
+    no_risk = pending_reports.filter(calculated_risk__isnull=True).order_by('-submitted_at')
 
     sorted_reports = list(high_risk) + list(medium_risk) + list(low_risk) + list(no_risk)
 
@@ -461,12 +561,13 @@ def vet_missing_reports(request):
     from datetime import datetime, timedelta
     from django.utils import timezone
 
-    user = request.user
-    clinic_ids = VetClinic.objects.filter(veterinarian=user, is_active=True).values_list('clinic_id', flat=True)
+    clinic_ids = _selected_clinic_ids(request)
 
+    # Solo seguimientos ya dados de salida (en casa) y aún activos.
     active_monitorings = SurgicalMonitoring.objects.filter(
         patient__clinic_id__in=clinic_ids,
-        status='ACTIVE'
+        status='ACTIVE',
+        home_release_date__isnull=False
     ).select_related(
         'patient',
         'patient__owner'
@@ -478,13 +579,12 @@ def vet_missing_reports(request):
         last_report = monitoring.reports.order_by('-submitted_at').first()
         now = timezone.now()
 
-        if last_report:
-            expected_next = last_report.submitted_at + timedelta(hours=monitoring.report_frequency_hours)
-        else:
-            expected_next = monitoring.surgery_date + timedelta(hours=monitoring.report_frequency_hours)
+        anchor = last_report.submitted_at if last_report else monitoring.home_release_date
+        expected_next = anchor + timedelta(hours=monitoring.report_frequency_hours)
 
         if now > expected_next:
-            days_since_surgery = (now.date() - monitoring.surgery_date.date()).days + 1
+            days_since_surgery = (now.date() - monitoring.surgery_date.date()).days + 1 if monitoring.surgery_date else None
+            days_since_release = (now.date() - monitoring.home_release_date.date()).days + 1
 
             missing_reports.append({
                 'id': monitoring.id,
@@ -496,7 +596,10 @@ def vet_missing_reports(request):
                 'owner_identification_number': monitoring.patient.owner.identification_number,
                 'surgery_type': monitoring.surgery_type,
                 'surgery_date': monitoring.surgery_date,
-                'day_number': days_since_surgery,
+                'home_release_date': monitoring.home_release_date,
+                'day_number': days_since_release,
+                'days_since_surgery': days_since_surgery,
+                'days_since_release': days_since_release,
                 'report_frequency_hours': monitoring.report_frequency_hours,
                 'last_report_at': last_report.submitted_at if last_report else None,
                 'expected_at': expected_next,

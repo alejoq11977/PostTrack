@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { patientsService, AnswerInput, RiskEvaluationResult } from '../api/patients.service';
 
 interface UseRiskEvaluationReturn {
-  evaluate: (answers: AnswerInput[]) => Promise<RiskEvaluationResult>;
+  evaluate: (answers: AnswerInput[], monitoringId?: number) => Promise<RiskEvaluationResult>;
   result: RiskEvaluationResult | null;
   isLoading: boolean;
   error: string | null;
@@ -13,12 +13,12 @@ export const useRiskEvaluation = (): UseRiskEvaluationReturn => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const evaluate = useCallback(async (answers: AnswerInput[]): Promise<RiskEvaluationResult> => {
+  const evaluate = useCallback(async (answers: AnswerInput[], monitoringId?: number): Promise<RiskEvaluationResult> => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const evaluationResult = await patientsService.evaluateRisk(answers);
+      const evaluationResult = await patientsService.evaluateRisk(answers, monitoringId);
       setResult(evaluationResult);
       return evaluationResult;
     } catch (err: any) {

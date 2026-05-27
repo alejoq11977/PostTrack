@@ -2,7 +2,7 @@ from django import forms
 from django.contrib import admin
 from django.utils.html import format_html, format_html_join
 from unfold.admin import ModelAdmin
-from .models import Patient, RiskRule, RiskThreshold
+from .models import Patient, RiskRule, RiskThreshold, RiskWindow, FactorWindowRisk
 from apps.core.services.imgbb import upload_image_to_imgbb
 from apps.monitoring.models.questions import GeneralQuestion
 import logging
@@ -14,16 +14,13 @@ class RiskRuleForm(forms.ModelForm):
     question_ids_input = forms.CharField(
         required=False,
         label="IDs de Preguntas",
-        help_text="Ingrese los IDs separados por coma (ej: 2,3,5). Abajo se muestran las preguntas disponibles con sus IDs.",
+        help_text="Ingrese los IDs separados por coma (ej: 2,3,5). TODAS deben estar en SÍ.",
         widget=forms.TextInput(attrs={'placeholder': '2, 3, 5'}),
     )
-    points_low = forms.IntegerField(initial=0, min_value=0, required=False, label="Puntos LOW")
-    points_medium = forms.IntegerField(initial=0, min_value=0, required=False, label="Puntos MEDIUM")
-    points_high = forms.IntegerField(initial=0, min_value=0, required=False, label="Puntos HIGH")
 
     class Meta:
         model = RiskRule
-        fields = ['name', 'description', 'is_active']
+        fields = ['name', 'description', 'result_level', 'is_active']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -33,7 +30,7 @@ class RiskRuleForm(forms.ModelForm):
             [(q.id, q.text[:70] + ('...' if len(q.text) > 70 else '')) for q in questions]
         )
         self.fields['question_ids_input'].help_text = format_html(
-            'Ingrese los IDs separados por coma (ej: 2,3,5).<br>'
+            'Ingrese los IDs separados por coma (ej: 2,3,5). TODAS deben estar en SÍ para que aplique.<br>'
             '<strong>Preguntas disponibles:</strong>'
             '<ul class="list-disc pl-5 mt-2 text-sm">{}</ul>',
             questions_html
@@ -41,19 +38,11 @@ class RiskRuleForm(forms.ModelForm):
 
         if self.instance and self.instance.pk:
             self.fields['question_ids_input'].initial = ','.join(str(x) for x in (self.instance.question_ids or []))
-            self.fields['points_low'].initial = self.instance.points.get('LOW', 0)
-            self.fields['points_medium'].initial = self.instance.points.get('MEDIUM', 0)
-            self.fields['points_high'].initial = self.instance.points.get('HIGH', 0)
 
     def save(self, commit=True):
         instance = super().save(commit=False)
         ids_str = self.cleaned_data['question_ids_input']
         instance.question_ids = [int(x.strip()) for x in ids_str.split(',') if x.strip()]
-        instance.points = {
-            'LOW': self.cleaned_data.get('points_low', 0),
-            'MEDIUM': self.cleaned_data.get('points_medium', 0),
-            'HIGH': self.cleaned_data.get('points_high', 0),
-        }
         if commit:
             instance.save()
         return instance
@@ -146,8 +135,8 @@ class PatientAdmin(ModelAdmin):
 @admin.register(RiskRule)
 class RiskRuleAdmin(ModelAdmin):
     form = RiskRuleForm
-    list_display = ('name', 'questions_summary', 'points_summary', 'is_active', 'created_at')
-    list_filter = ('is_active', 'created_at')
+    list_display = ('name', 'questions_summary', 'result_level', 'is_active', 'created_at')
+    list_filter = ('is_active', 'result_level', 'created_at')
     search_fields = ('name', 'description')
     ordering = ('-created_at',)
 
@@ -156,7 +145,7 @@ class RiskRuleAdmin(ModelAdmin):
             'fields': ('name', 'description')
         }),
         ('Configuración', {
-            'fields': ('question_ids_input', 'points_low', 'points_medium', 'points_high', 'is_active')
+            'fields': ('question_ids_input', 'result_level', 'is_active')
         }),
     )
 
@@ -166,13 +155,6 @@ class RiskRuleAdmin(ModelAdmin):
         count = len(obj.question_ids)
         return f"{count} pregunta(s)"
     questions_summary.short_description = 'Preguntas'
-
-    def points_summary(self, obj):
-        if not obj.points:
-            return '-'
-        parts = [f"+{v} {k}" for k, v in obj.points.items() if v > 0]
-        return ", ".join(parts) if parts else "Sin puntos"
-    points_summary.short_description = 'Puntos'
 
     def get_readonly_fields(self, request, obj=None):
         return ['created_at', 'updated_at']
@@ -190,3 +172,19 @@ class RiskThresholdAdmin(ModelAdmin):
             'fields': ('level', 'min_count', 'escalates_to', 'is_active')
         }),
     )
+
+
+@admin.register(RiskWindow)
+class RiskWindowAdmin(ModelAdmin):
+    list_display = ('label', 'start_hour', 'order', 'is_active')
+    list_filter = ('is_active',)
+    search_fields = ('label',)
+    ordering = ('start_hour',)
+
+
+@admin.register(FactorWindowRisk)
+class FactorWindowRiskAdmin(ModelAdmin):
+    list_display = ('question', 'window', 'risk_level')
+    list_filter = ('window', 'risk_level')
+    search_fields = ('question__text',)
+    ordering = ('question__id', 'window__start_hour')

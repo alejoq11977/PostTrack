@@ -69,15 +69,10 @@ export const ProtectedRoute = () => {
     return <Outlet />;
   }
 
-  if (!user.password_changed) {
-    return isCompleteProfileRoute
-      ? <Outlet />
-      : <Navigate to="/complete-profile" replace />;
-  }
-
-  if (isCompleteProfileRoute) {
-    return <Navigate to="/" replace />;
-  }
+  // No forced password change: every user sets their own password via Firebase
+  // (the activation email for new owners, or "forgot password"). The old
+  // /complete-profile flow only made sense when the clinic assigned a temporary
+  // password, which no longer happens.
 
   if (clinics.length === 0) {
     return (

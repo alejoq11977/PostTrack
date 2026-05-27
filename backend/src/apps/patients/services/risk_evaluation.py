@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from typing import List, Dict, Optional
 from apps.monitoring.models.questions import RiskLevel
 
+SEVERITY = {RiskLevel.LOW: 0, RiskLevel.MEDIUM: 1, RiskLevel.HIGH: 2}
+
 
 @dataclass
 class AnswerInput:
@@ -14,103 +16,87 @@ class RiskEvaluationResult:
     level: str
     counts: Dict[str, int]
     applied_rules: List[str]
+    window: Optional[str] = None
 
 
-def evaluate_risk(answers: List[AnswerInput]) -> RiskEvaluationResult:
+def _max_level(a: str, b: str) -> str:
+    return a if SEVERITY.get(a, 0) >= SEVERITY.get(b, 0) else b
+
+
+def _resolve_window(hours_since_surgery: Optional[float]):
+    """Ventana activa = la de mayor start_hour que sea <= horas desde la cirugía."""
+    from apps.patients.models.question import RiskWindow
+    if hours_since_surgery is None:
+        return None
+    return RiskWindow.objects.filter(
+        is_active=True, start_hour__lte=hours_since_surgery
+    ).order_by('-start_hour').first()
+
+
+def evaluate_risk(answers: List[AnswerInput], hours_since_surgery: Optional[float] = None) -> RiskEvaluationResult:
     """
-    Evalúa el nivel de riesgo basándose en las respuestas del propietario.
+    Evalúa el nivel de riesgo de un reporte.
 
-    Flujo:
-    1. Contar SÍ por nivel de riesgo de la pregunta
-    2. Nivel inicial = el más alto encontrado
-    3. Evaluar RiskRules (si todas las preguntas en SÍ → sumar puntos)
-    4. Evaluar RiskThresholds (si count >= min_count → escalar)
-    5. Retornar nivel final
+    El riesgo de cada factor depende de la VENTANA temporal, calculada desde la
+    cirugía (`hours_since_surgery`). El nivel final es el MÁXIMO entre:
+      - el factor individual más alto presente,
+      - cada combinación específica que se cumpla (su `result_level`),
+      - cada umbral que se cumpla (su `escalates_to`).
+    No importa el orden: siempre gana el riesgo más alto.
     """
-    if not answers:
-        return RiskEvaluationResult(
-            level=RiskLevel.LOW,
-            counts={RiskLevel.LOW: 0, RiskLevel.MEDIUM: 0, RiskLevel.HIGH: 0},
-            applied_rules=[]
-        )
-
-    valid_answers = [
-        a for a in answers
-        if isinstance(a.question_id, int) and a.question_id > 0
-    ]
-
-    if not valid_answers:
-        return RiskEvaluationResult(
-            level=RiskLevel.LOW,
-            counts={RiskLevel.LOW: 0, RiskLevel.MEDIUM: 0, RiskLevel.HIGH: 0},
-            applied_rules=[]
-        )
-
-    from apps.patients.models.question import RiskRule, RiskThreshold
+    from apps.patients.models.question import RiskRule, RiskThreshold, FactorWindowRisk
     from apps.monitoring.models.questions import GeneralQuestion
 
-    question_ids = [a.question_id for a in valid_answers]
-    questions = GeneralQuestion.objects.filter(id__in=question_ids, is_active=True)
-    question_risk_map = {q.id: q.associated_risk for q in questions}
+    zero = {RiskLevel.LOW: 0, RiskLevel.MEDIUM: 0, RiskLevel.HIGH: 0}
+    window = _resolve_window(hours_since_surgery)
+    window_label = window.label if window else None
 
-    counts = {RiskLevel.LOW: 0, RiskLevel.MEDIUM: 0, RiskLevel.HIGH: 0}
-    yes_questions = set()
+    yes_ids = [
+        a.question_id for a in (answers or [])
+        if a.answer and isinstance(a.question_id, int) and a.question_id > 0
+    ]
+    if not yes_ids:
+        return RiskEvaluationResult(level=RiskLevel.LOW, counts=dict(zero), applied_rules=[], window=window_label)
 
-    for answer in answers:
-        if answer.answer:
-            risk = question_risk_map.get(answer.question_id, RiskLevel.LOW)
-            counts[risk] += 1
-            yes_questions.add(answer.question_id)
+    # Riesgo de cada factor en esta ventana (respaldo: associated_risk de la pregunta).
+    risk_map: Dict[int, str] = {}
+    if window:
+        for fwr in FactorWindowRisk.objects.filter(window=window, question_id__in=yes_ids):
+            risk_map[fwr.question_id] = fwr.risk_level
+    for q in GeneralQuestion.objects.filter(id__in=yes_ids):
+        risk_map.setdefault(q.id, q.associated_risk or RiskLevel.LOW)
 
-    level = get_initial_level(counts)
-    applied_rules = []
+    counts = dict(zero)
+    yes_set = set()
+    for qid in yes_ids:
+        counts[risk_map.get(qid, RiskLevel.LOW)] += 1
+        yes_set.add(qid)
 
-    active_rules = RiskRule.objects.filter(is_active=True)
-    for rule in active_rules:
-        if all(q_id in yes_questions for q_id in rule.question_ids):
-            for level_key, points in rule.points.items():
-                counts[level_key] += points
+    candidates: List[str] = []
+    applied_rules: List[str] = []
+
+    # Factor individual más alto presente.
+    if counts[RiskLevel.HIGH] > 0:
+        candidates.append(RiskLevel.HIGH)
+    elif counts[RiskLevel.MEDIUM] > 0:
+        candidates.append(RiskLevel.MEDIUM)
+    else:
+        candidates.append(RiskLevel.LOW)
+
+    # Combinaciones específicas (todas sus preguntas en SÍ).
+    for rule in RiskRule.objects.filter(is_active=True):
+        if rule.question_ids and all(qid in yes_set for qid in rule.question_ids):
+            candidates.append(rule.result_level)
             applied_rules.append(rule.name)
 
-    level = apply_thresholds(counts)
+    # Umbrales de acumulación.
+    for t in RiskThreshold.objects.filter(is_active=True):
+        if counts.get(t.level, 0) >= t.min_count:
+            candidates.append(t.escalates_to)
+            applied_rules.append(f"{t.min_count}+ {t.level} → {t.escalates_to}")
 
-    return RiskEvaluationResult(
-        level=level,
-        counts=counts,
-        applied_rules=applied_rules
-    )
+    final = RiskLevel.LOW
+    for c in candidates:
+        final = _max_level(final, c)
 
-
-def get_initial_level(counts: Dict[str, int]) -> str:
-    """Determina el nivel inicial basado en el nivel más alto presente."""
-    if counts[RiskLevel.HIGH] > 0:
-        return RiskLevel.HIGH
-    if counts[RiskLevel.MEDIUM] > 0:
-        return RiskLevel.MEDIUM
-    return RiskLevel.LOW
-
-
-def apply_thresholds(counts: Dict[str, int]) -> str:
-    """Aplica los thresholds de forma iterativa hasta que no haya más cambios."""
-    from apps.patients.models.question import RiskThreshold
-
-    max_iterations = 10
-    for _ in range(max_iterations):
-        thresholds = RiskThreshold.objects.filter(is_active=True).order_by('-min_count')
-        threshold_applied = False
-
-        for threshold in thresholds:
-            if counts[threshold.level] >= threshold.min_count:
-                if threshold.escalates_to == 'LOW':
-                    counts['LOW'] += 1
-                elif threshold.escalates_to == 'MEDIUM':
-                    counts['MEDIUM'] += 1
-                elif threshold.escalates_to == 'HIGH':
-                    counts['HIGH'] += 1
-                threshold_applied = True
-                break
-
-        if not threshold_applied:
-            break
-
-    return get_initial_level(counts)
+    return RiskEvaluationResult(level=final, counts=counts, applied_rules=applied_rules, window=window_label)

@@ -20,15 +20,15 @@ function StatCard({ icon: Icon, label, value, subtext, color, isLoading }: {
   }
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 hover:shadow-md transition-shadow">
-      <div className="flex items-center gap-3 mb-3">
-        <div className={`w-10 h-10 rounded-lg ${color} flex items-center justify-center`}>
-          <Icon size={20} className="text-white" />
+    <div className="bg-white rounded-xl border border-slate-200 p-6 hover:shadow-md transition-shadow">
+      <div className="flex items-center gap-4 mb-4">
+        <div className={`w-12 h-12 rounded-lg ${color} flex items-center justify-center`}>
+          <Icon size={22} className="text-white" />
         </div>
-        <span className="text-slate-500 text-sm">{label}</span>
+        <span className="text-slate-500 text-base">{label}</span>
       </div>
-      <div className="text-2xl font-display font-semibold text-slate-800">{value}</div>
-      {subtext && <p className="text-xs text-slate-400 mt-1">{subtext}</p>}
+      <div className="text-3xl font-display font-semibold text-slate-800">{value}</div>
+      {subtext && <p className="text-sm text-slate-400 mt-1.5">{subtext}</p>}
     </div>
   );
 }
@@ -65,10 +65,10 @@ export const VetDashboardPage = () => {
       {/* Header */}
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-[24px] font-display font-semibold text-slate-800 tracking-tight">
+          <h1 className="text-[28px] font-display font-semibold text-slate-800 tracking-tight">
             Dashboard
           </h1>
-          <p className="text-slate-400 text-[13px] mt-1">
+          <p className="text-slate-400 text-sm mt-1">
             Resumen de actividad y alertas en tiempo real
           </p>
         </div>
@@ -111,7 +111,7 @@ export const VetDashboardPage = () => {
       )}
 
       {/* Stats Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
         <StatCard
           icon={AlertCircle}
           label="Alertas de Riesgo"
@@ -149,14 +149,14 @@ export const VetDashboardPage = () => {
       {/* Main Content - 60/40 Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-6">
         {/* Alerts Section - 60% */}
-        <section className="bg-white rounded-xl border border-slate-200 p-5">
+        <section className="bg-white rounded-xl border border-slate-200 p-6">
           <SectionHeader
             title="Alertas de Riesgo"
             badge={`${alertCount} alertas`}
             variant="live"
           />
           {isInitialLoading ? (
-            <div className="space-y-3">
+            <div className="space-y-4">
               <StatCardSkeleton />
               <StatCardSkeleton />
               <StatCardSkeleton />
@@ -167,7 +167,7 @@ export const VetDashboardPage = () => {
         </section>
 
         {/* Missing Reports Section - 40% */}
-        <section className="bg-white rounded-xl border border-slate-200 p-5">
+        <section className="bg-white rounded-xl border border-slate-200 p-6">
           <SectionHeader
             title="Reportes Faltantes"
             badge={`${missingCount} faltantes`}

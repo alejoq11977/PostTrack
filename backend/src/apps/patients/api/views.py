@@ -35,10 +35,21 @@ class EvaluateRiskAPIView(APIView):
         except KeyError as e:
             return Response({'error': f'Falta campo requerido: {e}'}, status=400)
 
-        result = evaluate_risk(answers)
+        # La ventana temporal se calcula desde la cirugía del seguimiento (si se envía).
+        hours_since_surgery = None
+        monitoring_id = request.data.get('monitoring_id')
+        if monitoring_id:
+            from django.utils import timezone
+            from apps.monitoring.models import SurgicalMonitoring
+            m = SurgicalMonitoring.objects.filter(id=monitoring_id, patient__owner=request.user).first()
+            if m and m.surgery_date:
+                hours_since_surgery = (timezone.now() - m.surgery_date).total_seconds() / 3600
+
+        result = evaluate_risk(answers, hours_since_surgery=hours_since_surgery)
 
         return Response({
             'level': result.level,
             'counts': result.counts,
-            'applied_rules': result.applied_rules
+            'applied_rules': result.applied_rules,
+            'window': result.window,
         })

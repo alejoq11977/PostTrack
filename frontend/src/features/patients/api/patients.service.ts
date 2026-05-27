@@ -14,6 +14,7 @@ export interface RiskEvaluationResult {
     HIGH: number;
   };
   applied_rules: string[];
+  window?: string | null;
 }
 
 export interface SubmitReportPayload {
@@ -63,8 +64,10 @@ export const patientsService = {
     return response.data;
   },
 
-  evaluateRisk: async (answers: AnswerInput[]): Promise<RiskEvaluationResult> => {
-    const response = await apiClient.post<RiskEvaluationResult>('/patients/evaluate-risk/', { answers });
+  evaluateRisk: async (answers: AnswerInput[], monitoringId?: number): Promise<RiskEvaluationResult> => {
+    const body: { answers: AnswerInput[]; monitoring_id?: number } = { answers };
+    if (monitoringId) body.monitoring_id = monitoringId;
+    const response = await apiClient.post<RiskEvaluationResult>('/patients/evaluate-risk/', body);
     return response.data;
   }
 };

@@ -60,6 +60,17 @@ class ClinicAccessMiddleware:
                 status=403
             )
 
+        # Admins are not tied to a clinic via membership; they may act on any active clinic.
+        if getattr(request.user, 'role', None) == 'ADMIN':
+            from apps.clinics.models import Clinic
+            if Clinic.objects.filter(id=clinic_id, is_active=True).exists():
+                request.clinic_id = clinic_id
+                return self.get_response(request)
+            return JsonResponse(
+                {'error': 'Clinic not found', 'code': 'CLINIC_NOT_FOUND'},
+                status=403
+            )
+
         user_clinic_ids = self._get_user_clinic_ids(request.user)
 
         if not user_clinic_ids:
@@ -97,10 +108,10 @@ class ClinicAccessMiddleware:
         if not user.is_authenticated:
             return []
 
-        from apps.clinics.models import VetClinic
+        from apps.clinics.models import ClinicMembership
         try:
-            return list(VetClinic.objects.filter(
-                veterinarian=user,
+            return list(ClinicMembership.objects.filter(
+                user=user,
                 is_active=True
             ).values_list('clinic_id', flat=True))
         except Exception as e:
