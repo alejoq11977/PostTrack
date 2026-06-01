@@ -18,6 +18,8 @@ dist/
 # Test / tooling artifacts
 .playwright-mcp/
 skills/
+.agents/
+skills-lock.json
 
 # Celery beat runtime schedule
 celerybeat-schedule*
