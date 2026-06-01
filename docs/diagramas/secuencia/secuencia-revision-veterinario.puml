@@ -1,0 +1,53 @@
+@startuml secuencia-revision-veterinario
+title PostTrack — Secuencia: Revisión y validación de un reporte (Veterinario)
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Helvetica"
+skinparam ParticipantBackgroundColor #E8F8F5
+skinparam ParticipantBorderColor #148F77
+
+actor Veterinario as V
+participant "Frontend Vet\n(React)" as FE
+participant "vet.service\n(Axios)" as API
+participant "ClinicAccessMiddleware" as MW
+participant "Vet API\n(/api/vet/...)" as VIEW
+database "PostgreSQL" as DB
+
+V -> FE : abrir bandeja de reportes
+FE -> API : getReports(filter)
+API -> MW : GET /vet/reports/ (Bearer + X-Clinic-Id)
+MW -> MW : validar membresía a la clínica
+MW -> VIEW : reenviar
+VIEW -> DB : Report filtrados por clinic_id\n(orden por riesgo)
+DB --> VIEW : lista paginada
+VIEW --> API : reportes
+API --> FE : lista
+FE --> V : bandeja priorizada
+
+V -> FE : abrir detalle
+FE -> API : getReport(id)
+API -> MW : GET /vet/reports/{id}/
+MW -> VIEW : reenviar
+VIEW -> DB : Report + Answer + VisualEvidence
+DB --> VIEW : detalle
+VIEW --> FE : respuestas, fotos, notas, calculated_risk
+FE --> V : muestra el caso
+
+alt el veterinario corrige el riesgo
+  V -> FE : seleccionar validated_risk + justificación
+  FE -> API : updateReport(id, {validated_risk})
+  API -> VIEW : PATCH /vet/reports/{id}/validate/\n(vía ClinicAccessMiddleware)
+  VIEW -> DB : guardar validated_risk
+  DB --> VIEW : ok
+end
+
+V -> FE : marcar como revisado
+FE -> API : markReviewed(id)
+API -> VIEW : PATCH /vet/reports/{id}/mark-reviewed/\n(vía ClinicAccessMiddleware)
+VIEW -> DB : review_status = REVIEWED, reviewed_at = ahora
+DB --> VIEW : ok
+VIEW --> FE : {status: reviewed}
+FE --> V : confirmación
+
+@enduml

@@ -26,10 +26,19 @@ def _clinic_name(clinic_id):
 
 
 def _firebase_password_link(email):
-    """Generate a Firebase 'set / reset password' action link, or None on failure."""
+    """Genera el enlace de Firebase para que el usuario ponga su contraseña.
+
+    Firebase exige `actionCodeSettings` con una URL de continuación (a dónde
+    cae el usuario después de aplicar el reset). El dominio debe estar en
+    "Authorized domains" en Firebase Console (localhost ya está por defecto).
+    """
     try:
         from firebase_admin import auth as firebase_auth
-        return firebase_auth.generate_password_reset_link(email)
+        action_code_settings = firebase_auth.ActionCodeSettings(
+            url=f"{_frontend_url()}/login",
+            handle_code_in_app=False,
+        )
+        return firebase_auth.generate_password_reset_link(email, action_code_settings)
     except Exception as exc:
         logger.warning("Could not generate Firebase password link for %s: %s", email, exc)
         return None
@@ -73,6 +82,54 @@ def send_owner_activation_email(user, clinic_id):
         <p><strong>{clinic_name}</strong> te registró en PostTrack para que puedas
         ver tus mascotas, sus seguimientos y enviar reportes.</p>
         <p>Para activar tu cuenta y crear tu contraseña, haz clic aquí:</p>
+        <p><a href="{link}">Activar mi cuenta</a></p>
+        <p>Si no esperabas este correo, puedes ignorarlo.</p>
+        <p>— Equipo PostTrack</p>
+    """
+    return _deliver(user.email, user.full_name, subject, html)
+
+
+def send_overdue_report_email(owner, monitoring, hours_overdue):
+    """
+    Recordatorio al propietario de que tiene un reporte vencido.
+    Llamado por la tarea Celery `send_overdue_reminders` (máx 3 por ciclo, 1 cada 24h).
+    """
+    pet_name = monitoring.patient.name if monitoring.patient else 'tu mascota'
+    owner_name = (owner.full_name or '').split(' ')[0] if owner.full_name else ''
+    link = f"{_frontend_url()}/report/{monitoring.id}"
+    days_overdue = max(1, int(hours_overdue // 24)) if hours_overdue >= 24 else 0
+    when_str = (
+        f"hace más de {days_overdue} día{'s' if days_overdue != 1 else ''}"
+        if days_overdue else f"hace {int(hours_overdue)} hora{'s' if int(hours_overdue) != 1 else ''}"
+    )
+
+    subject = f"{pet_name} tiene un reporte pendiente por enviar"
+    html = f"""
+        <p>Hola{f' {owner_name}' if owner_name else ''},</p>
+        <p>Te escribimos para recordarte que <strong>{pet_name}</strong> tiene un
+        reporte de seguimiento pendiente por enviar. Debías enviarlo {when_str}.</p>
+        <p>Tu veterinario necesita saber cómo va la recuperación. Envíalo cuando
+        puedas desde el enlace:</p>
+        <p><a href="{link}">Enviar reporte de {pet_name}</a></p>
+        <p>Si ya lo enviaste, puedes ignorar este correo. Si tienes alguna duda,
+        comunícate con tu veterinario.</p>
+        <p>— Equipo PostTrack</p>
+    """
+    return _deliver(owner.email, owner.full_name, subject, html)
+
+
+def send_activation_email(user):
+    """
+    Activación de cuenta sin contexto de clínica (p. ej. veterinarios creados
+    desde el panel admin). El destinatario recibe el enlace de Firebase para
+    poner su propia contraseña.
+    """
+    link = _firebase_password_link(user.email) or _frontend_url()
+    subject = "Activa tu cuenta en PostTrack"
+    html = f"""
+        <p>Hola {user.full_name or ''},</p>
+        <p>Tu cuenta en <strong>PostTrack</strong> fue creada. Para empezar,
+        activa la cuenta y crea tu propia contraseña con el siguiente enlace:</p>
         <p><a href="{link}">Activar mi cuenta</a></p>
         <p>Si no esperabas este correo, puedes ignorarlo.</p>
         <p>— Equipo PostTrack</p>

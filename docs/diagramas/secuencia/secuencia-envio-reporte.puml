@@ -1,0 +1,60 @@
+@startuml secuencia-envio-reporte
+title PostTrack — Secuencia: Envío y clasificación de un reporte
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Helvetica"
+skinparam sequenceMessageAlign center
+skinparam ParticipantBackgroundColor #EBF5FB
+skinparam ParticipantBorderColor #2471A3
+
+actor Propietario as O
+participant "ReportForm\n(React)" as FE
+participant "patients.service\n(Axios)" as API
+participant "MonitoringFormAPIView\n(POST /monitoring/{id}/form/)" as VIEW
+participant "create_monitoring_report\n(service)" as SVC
+participant "evaluate_risk\n(motor de reglas)" as RISK
+database "PostgreSQL" as DB
+queue "Redis" as RQ
+participant "Celery worker" as CEL
+participant "ImgBB" as IMG
+
+O -> FE : completa pasos 1-3 y "Enviar"
+FE -> API : submitReport(FormData)
+API -> VIEW : POST (Bearer + X-Clinic-Id)
+activate VIEW
+VIEW -> SVC : create_monitoring_report(data, files)
+activate SVC
+SVC -> DB : guardar imágenes temporales
+SVC -> RISK : evaluate_risk(answers, horas_desde_cirugia)
+activate RISK
+RISK -> DB : RiskWindow / FactorWindowRisk / RiskRule / RiskThreshold
+RISK --> SVC : RiskEvaluationResult(level, window, ...)
+deactivate RISK
+SVC -> DB : crear Report(calculated_risk) + Answer
+alt hay imágenes
+  SVC -> DB : processing_status = PROCESSING
+  SVC -> RQ : process_report_images_task.delay(report_id, paths)
+else sin imágenes
+  SVC -> DB : processing_status = COMPLETED
+end
+SVC -> DB : reiniciar contadores de recordatorio
+SVC --> VIEW : report
+deactivate SVC
+VIEW --> API : 201 {report_id}
+deactivate VIEW
+API --> FE : ok
+FE -> API : evaluateRisk(answers) (para mostrar resultado)
+API --> FE : {level, counts, applied_rules, window}
+FE --> O : pantalla de resultado
+
+== Procesamiento asíncrono de imágenes ==
+RQ -> CEL : process_report_images_task
+activate CEL
+CEL -> IMG : subir cada imagen
+IMG --> CEL : URL
+CEL -> DB : crear VisualEvidence
+CEL -> DB : processing_status = COMPLETED / FAILED
+deactivate CEL
+
+@enduml

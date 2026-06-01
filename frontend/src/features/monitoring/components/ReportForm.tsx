@@ -1,5 +1,5 @@
 import { memo, useEffect, useState } from 'react';
-import { ArrowLeft, Check, ChevronRight, Info, UploadCloud, X, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Check, ChevronRight, Info, UploadCloud, X, CheckCircle2, HeartPulse, MessageSquare, Camera } from 'lucide-react';
 import { cn } from '@/shared/utils/cn';
 import { useReportForm } from '../hooks/useReportForm';
 import { ReportStepper } from './ReportStepper';
@@ -112,53 +112,84 @@ export const ReportForm = ({ monitoringId }: ReportFormProps) => {
 
   const { monitoring, general_questions } = formData;
 
+  const petName = monitoring.patient_name?.trim() || 'tu mascota';
+  const petEmoji = monitoring.patient_species === 'Felino' ? '🐈'
+    : monitoring.patient_species === 'Canino' ? '🐕' : '🐾';
+  const daysSince = monitoring.surgery_date
+    ? Math.max(0, Math.floor((Date.now() - new Date(monitoring.surgery_date).getTime()) / 86400000))
+    : null;
+
   if (isSuccess) return (
-    <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center animate-in zoom-in-95 duration-500">
-      <div className="w-20 h-20 rounded-full bg-brand-50 border-2 border-brand-100 flex items-center justify-center mx-auto mb-6">
-        <CheckCircle2 size={40} className="text-brand-500" />
+    <div className="max-w-2xl mx-auto bg-white rounded-3xl shadow-[0_1px_3px_rgba(0,0,0,0.06),_0_8px_30px_rgba(42,170,138,0.10)] border border-brand-100 p-12 text-center animate-in zoom-in-95 duration-500">
+      <div className="w-20 h-20 rounded-full bg-gradient-to-br from-brand-400 to-brand-500 flex items-center justify-center mx-auto mb-6 shadow-lg shadow-brand-500/25">
+        <CheckCircle2 size={40} className="text-white" />
       </div>
-      <h2 className="font-display text-3xl text-slate-800 mb-3">Reporte enviado con éxito</h2>
+      <h2 className="font-display text-3xl text-slate-800 mb-3">¡Gracias por cuidar a {petName}! 💚</h2>
       <p className="text-slate-500 mb-8 max-w-md mx-auto leading-relaxed">
-        El equipo veterinario ha recibido su reporte de la cirugía de <strong>{monitoring.surgery_type}</strong>. 
-        Las imágenes se están procesando de forma segura.
+        Tu veterinario ya recibió el reporte de hoy. Si algo necesita atención, se pondrá en contacto contigo.
       </p>
-      <button onClick={() => navigate('/')} className="px-6 py-2.5 bg-brand-400 text-white font-semibold rounded-lg hover:bg-brand-500 transition-colors">
+      <button onClick={() => navigate('/')} className="px-6 py-3 bg-brand-500 text-white font-semibold rounded-xl hover:bg-brand-600 transition-colors shadow-lg shadow-brand-500/20">
         Volver a mis mascotas
       </button>
     </div>
   );
 
   return (
-    <div className="max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
-      
-      {/* HEADER */}
-      <div className="mb-8">
-        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-[13.5px] font-medium text-slate-500 hover:text-brand-600 mb-6 transition-colors">
-          <ArrowLeft size={16} /> Volver
-        </button>
-        <p className="text-[11px] font-semibold tracking-[0.09em] uppercase text-brand-400 mb-1.5">Seguimiento Postoperatorio</p>
-        <h1 className="font-display text-[28px] text-slate-800 mb-2 leading-tight">Reporte de evolución</h1>
-        <p className="text-slate-500 text-[14px] leading-relaxed">
-          Cirugía: {monitoring.surgery_type} ({new Date(monitoring.surgery_date).toLocaleDateString()})
-        </p>
-      </div>
+    <div className="max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
 
-      {/* STEPPER EXTRAÍDO */}
-      <ReportStepper currentStep={step} />
+      <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-[13.5px] font-medium text-slate-500 hover:text-brand-600 mb-5 transition-colors">
+        <ArrowLeft size={16} /> Volver
+      </button>
 
-      <div className="bg-white rounded-[22px] shadow-[0_1px_3px_rgba(0,0,0,0.06),_0_4px_16px_rgba(0,0,0,0.07)] overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] gap-6 lg:gap-8 items-start">
+
+        {/* RIEL IZQUIERDO: hero + stepper (sticky en escritorio) */}
+        <aside className="lg:sticky lg:top-4 space-y-5">
+          <div className="rounded-3xl bg-gradient-to-br from-brand-50 via-white to-brand-50/40 border border-brand-100 p-5 lg:p-6 flex flex-row items-center gap-4 lg:flex-col lg:items-start lg:gap-0">
+            {monitoring.patient_photo ? (
+              <img
+                src={monitoring.patient_photo}
+                alt={petName}
+                className="w-16 h-16 rounded-2xl object-cover shadow-md shrink-0 lg:w-full lg:h-auto lg:aspect-square"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-2xl bg-white border border-brand-100 flex items-center justify-center text-3xl shadow-sm shrink-0 lg:w-full lg:h-auto lg:aspect-square lg:text-6xl">
+                {petEmoji}
+              </div>
+            )}
+            <div className="min-w-0 lg:mt-4 lg:w-full">
+              <p className="text-[11px] font-semibold tracking-[0.09em] uppercase text-brand-500 mb-1">Reporte de seguimiento</p>
+              <h1 className="font-display text-[22px] sm:text-[24px] lg:text-[26px] text-slate-800 leading-tight">
+                ¿Cómo sigue {petName} hoy?
+              </h1>
+              <p className="text-slate-500 text-[13px] mt-1 leading-relaxed">
+                {monitoring.surgery_type}{daysSince !== null && ` · Día ${daysSince} de recuperación`}
+              </p>
+            </div>
+          </div>
+
+          <ReportStepper currentStep={step} />
+        </aside>
+
+        {/* COLUMNA DERECHA: tarjeta del formulario */}
+        <div className="min-w-0 bg-white rounded-[22px] shadow-[0_1px_3px_rgba(0,0,0,0.06),_0_4px_16px_rgba(0,0,0,0.07)] overflow-hidden">
         
         {/* === SECCIÓN 1 === */}
         {step === 1 && (
           <div className="animate-in slide-in-from-right-8 duration-300">
-            <div className="bg-slate-50 px-7 py-5 border-b border-slate-100">
-              <p className="text-[10.5px] font-bold tracking-widest uppercase text-brand-400 mb-1">Sección 1 de 3</p>
-              <h2 className="text-[15px] font-semibold text-slate-800">Preguntas generales de seguimiento</h2>
+            <div className="px-6 sm:px-7 py-5 bg-gradient-to-r from-brand-50 to-transparent border-b border-brand-100/70 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-brand-100 text-brand-600 flex items-center justify-center shrink-0">
+                <HeartPulse size={20} />
+              </div>
+              <div>
+                <p className="text-[10.5px] font-bold tracking-widest uppercase text-brand-400">Paso 1 de 3</p>
+                <h2 className="text-[16px] font-semibold text-slate-800">¿Cómo se ha sentido {petName}?</h2>
+              </div>
             </div>
-            <div className="p-7">
-              <div className="flex items-start gap-2 bg-brand-50 border border-brand-100 rounded-lg p-3 text-[13px] text-brand-700 mb-6">
+            <div className="p-6 sm:p-7">
+              <div className="flex items-start gap-2 bg-brand-50 border border-brand-100 rounded-xl p-3.5 text-[13px] text-brand-700 mb-6">
                 <Info size={16} className="shrink-0 mt-0.5" />
-                <p>Responda <strong>Sí</strong> o <strong>No</strong> a cada pregunta para continuar.</p>
+                <p>Marca <strong>Sí</strong> o <strong>No</strong> según lo que veas. Si tienes dudas, toca <strong>«¿Cómo lo reviso?»</strong> bajo cada pregunta.</p>
               </div>
 
               <div className="divide-y divide-slate-100">
@@ -190,15 +221,20 @@ export const ReportForm = ({ monitoringId }: ReportFormProps) => {
         {/* === SECCIÓN 2 === */}
         {step === 2 && (
           <div className="animate-in slide-in-from-right-8 duration-300">
-             <div className="bg-slate-50 px-7 py-5 border-b border-slate-100">
-              <p className="text-[10.5px] font-bold tracking-widest uppercase text-brand-400 mb-1">Sección 2 de 3</p>
-              <h2 className="text-[15px] font-semibold text-slate-800">Evaluación clínica detallada</h2>
+            <div className="px-6 sm:px-7 py-5 bg-gradient-to-r from-brand-50 to-transparent border-b border-brand-100/70 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-brand-100 text-brand-600 flex items-center justify-center shrink-0">
+                <MessageSquare size={20} />
+              </div>
+              <div>
+                <p className="text-[10.5px] font-bold tracking-widest uppercase text-brand-400">Paso 2 de 3</p>
+                <h2 className="text-[16px] font-semibold text-slate-800">Lo que pregunta tu veterinario</h2>
+              </div>
             </div>
-            <div className="p-7 space-y-6">
-              
-              <div className="flex items-start gap-2 bg-brand-50 border border-brand-100 rounded-lg p-3 text-[13px] text-brand-700 mb-2">
+            <div className="p-6 sm:p-7 space-y-6">
+
+              <div className="flex items-start gap-2 bg-brand-50 border border-brand-100 rounded-xl p-3.5 text-[13px] text-brand-700 mb-2">
                 <Info size={16} className="shrink-0 mt-0.5" />
-                <p>Por favor, responda a las preguntas indicadas con un asterisco (<span className="text-red-500 font-bold">*</span>) formuladas por su médico veterinario.</p>
+                <p>Cuéntale con tus palabras. Las preguntas con <span className="text-red-500 font-bold">*</span> son obligatorias.</p>
               </div>
 
               {monitoring.custom_questions.map((cq) => (
@@ -253,14 +289,19 @@ export const ReportForm = ({ monitoringId }: ReportFormProps) => {
         {/* === SECCIÓN 3 === */}
         {step === 3 && (
           <div className="animate-in slide-in-from-right-8 duration-300">
-            <div className="bg-slate-50 px-7 py-5 border-b border-slate-100">
-              <p className="text-[10.5px] font-bold tracking-widest uppercase text-brand-400 mb-1">Sección 3 de 3</p>
-              <h2 className="text-[15px] font-semibold text-slate-800">Evidencia fotográfica (Opcional)</h2>
+            <div className="px-6 sm:px-7 py-5 bg-gradient-to-r from-brand-50 to-transparent border-b border-brand-100/70 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-brand-100 text-brand-600 flex items-center justify-center shrink-0">
+                <Camera size={20} />
+              </div>
+              <div>
+                <p className="text-[10.5px] font-bold tracking-widest uppercase text-brand-400">Paso 3 de 3</p>
+                <h2 className="text-[16px] font-semibold text-slate-800">Una foto ayuda mucho <span className="text-slate-400 font-normal text-[13px]">· opcional</span></h2>
+              </div>
             </div>
-            
-            <div className="p-7">
+
+            <div className="p-6 sm:p-7">
               <p className="text-[13px] text-slate-500 leading-relaxed mb-6">
-                Adjunte hasta <strong>4 fotografías</strong>. Las imágenes se procesarán en nuestros servidores seguros de forma asíncrona.
+                Adjunta hasta <strong>4 fotos</strong> de la herida o de {petName}. Le ayudan a tu veterinario a revisar mejor cómo va la recuperación.
               </p>
 
               <div className="grid grid-cols-2 gap-4">
@@ -302,6 +343,7 @@ export const ReportForm = ({ monitoringId }: ReportFormProps) => {
           </div>
         )}
 
+      </div>
       </div>
     </div>
   );

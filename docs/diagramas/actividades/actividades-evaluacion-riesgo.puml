@@ -1,0 +1,53 @@
+@startuml actividades-evaluacion-riesgo
+title PostTrack — Actividad: Cálculo del nivel de riesgo (evaluate_risk)
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Helvetica"
+
+start
+:Recibir respuestas y horas desde la cirugía;
+:Filtrar las preguntas respondidas "Sí"\n(yes_ids);
+if (¿hay algún "Sí"?) then (no)
+  :nivel = BAJO;
+  stop
+else (sí)
+endif
+
+:Resolver ventana activa\n(mayor start_hour <= horas);
+
+partition "Riesgo por factor" {
+  :Para cada factor en Sí, buscar su riesgo
+   en FactorWindowRisk de la ventana;
+  :Si no existe, usar associated_risk
+   de la pregunta (respaldo);
+  :Contar factores por nivel (BAJO/MEDIO/ALTO);
+}
+
+partition "Reunir candidatos (no por prioridad)" {
+  if (¿algún factor ALTO?) then (sí)
+    :candidato = ALTO;
+  elseif (¿algún factor MEDIO?) then (sí)
+    :candidato = MEDIO;
+  else (no)
+    :candidato = BAJO;
+  endif
+
+  :Por cada RiskRule activa cuyas preguntas
+   estén TODAS en Sí → agregar result_level;
+
+  :Por cada RiskThreshold activo donde
+   #factores(level) >= min_count
+   → agregar escalates_to;
+}
+
+:nivel final = MÁXIMO de todos los candidatos;
+:Devolver RiskEvaluationResult\n(level, counts, applied_rules, window);
+stop
+
+note right
+  El orden de las reglas no altera el resultado:
+  siempre gana el riesgo más alto.
+end note
+
+@enduml

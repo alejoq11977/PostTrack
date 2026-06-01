@@ -1,0 +1,48 @@
+@startuml estados-monitoreo
+title PostTrack — Diagrama de Estados: Monitoreo quirúrgico (SurgicalMonitoring)
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Helvetica"
+skinparam stateBackgroundColor #E8F8F5
+skinparam stateBorderColor #148F77
+
+[*] --> ACTIVE : el veterinario crea el monitoreo\n(surgery_date, frecuencia, preguntas)
+
+state ACTIVE {
+  state "En la clínica" as InClinic
+  state "En recuperación en casa" as AtHome
+
+  [*] --> InClinic
+  InClinic --> AtHome : registrar salida a casa\n(home_release_date = ahora)
+
+  state AtHome {
+    state "Al día" as OnTime
+    state "Reporte vencido" as Overdue
+
+    [*] --> OnTime
+    OnTime --> Overdue : ahora > último reporte\n(o salida) + frecuencia
+    Overdue --> OnTime : el propietario envía un reporte\n(reinicia contadores de recordatorio)
+    Overdue --> Overdue : Celery envía recordatorio\n(máx. 3, mín. 24 h entre envíos)
+  }
+}
+
+ACTIVE --> DISCHARGED : el veterinario da de alta\n(discharged_at = ahora)
+
+state DISCHARGED {
+  state "Sin recolección de reportes" as Closed
+}
+
+DISCHARGED --> [*]
+
+note right of AtHome
+  Solo en este estado el propietario
+  puede enviar reportes.
+end note
+
+note right of DISCHARGED
+  Celery deja de enviar recordatorios
+  (la tarea filtra status = ACTIVE).
+end note
+
+@enduml

@@ -1,0 +1,44 @@
+@startuml actividades-revision-veterinario
+title PostTrack — Actividad: Revisión y validación de reportes (Veterinario)
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Helvetica"
+
+|Veterinario|
+start
+:Iniciar sesión y seleccionar clínica activa;
+:Abrir el tablero;
+fork
+  :Ver alertas en tiempo real (SSE);
+fork again
+  :Ver reportes faltantes (vencidos);
+fork again
+  :Ver bandeja de reportes\n(orden ALTO → MEDIO → BAJO);
+end fork
+:Seleccionar un reporte;
+
+|Backend|
+:Cargar detalle filtrado por clínica\n(respuestas, fotos, notas,\nriesgo calculado);
+
+|Veterinario|
+:Revisar respuestas, evidencia y notas;
+if (¿El riesgo calculado es correcto?) then (no)
+  :Seleccionar validated_risk\n(corregir a mayor o menor)\n+ justificación;
+  |Backend|
+  :PATCH validate → guardar validated_risk;
+  |Veterinario|
+else (sí)
+endif
+:Marcar como revisado;
+
+|Backend|
+:review_status = REVIEWED;
+:reviewed_at = ahora;
+:Registrar cambios en el historial;
+
+|Veterinario|
+:Decidir acción\n(contactar, programar visita o derivar);
+stop
+
+@enduml

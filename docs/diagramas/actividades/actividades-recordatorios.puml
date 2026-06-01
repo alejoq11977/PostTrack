@@ -1,0 +1,36 @@
+@startuml actividades-recordatorios
+title PostTrack — Actividad: Recordatorios de reportes vencidos (Celery beat)
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Helvetica"
+
+start
+:Celery beat dispara send_overdue_reminders\n(cada 30 minutos);
+:Obtener monitoreos ACTIVOS con salida a casa\ny overdue_emails_sent < 3;
+
+while (¿quedan monitoreos por revisar?) is (sí)
+  :Tomar el siguiente monitoreo;
+  :anchor = último reporte o salida a casa;
+  :expected_next = anchor + frecuencia (horas);
+  if (¿ahora > expected_next?) then (sí, vencido)
+    if (¿last_overdue_email_at hace < 24 h?) then (sí)
+      :Omitir (anti-spam);
+    else (no)
+      :Enviar correo de recordatorio\n(mascota, horas de retraso, enlace);
+      :last_overdue_email_at = ahora;
+      :overdue_emails_sent += 1;
+    endif
+  else (no, al día)
+    :No hacer nada;
+  endif
+endwhile (no)
+
+stop
+
+note right
+  Los contadores se reinician cuando el
+  propietario envía un nuevo reporte.
+end note
+
+@enduml

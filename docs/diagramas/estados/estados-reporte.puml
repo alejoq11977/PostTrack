@@ -1,0 +1,33 @@
+@startuml estados-reporte
+title PostTrack — Diagrama de Estados: Reporte (Report)
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Helvetica"
+skinparam stateBackgroundColor #EAF2F8
+skinparam stateBorderColor #2471A3
+
+note "Un reporte tiene dos dimensiones independientes:\nel procesamiento de imágenes y la revisión clínica." as N1
+
+state "Procesamiento (processing_status)" as Proc {
+  [*] --> COMPLETED : reporte sin fotos
+  [*] --> PROCESSING : reporte con fotos\n(tarea Celery encolada)
+  PROCESSING --> COMPLETED : imágenes subidas a ImgBB\n(VisualEvidence creada)
+  PROCESSING --> FAILED : error al subir
+  COMPLETED --> [*]
+  FAILED --> [*]
+}
+
+state "Revisión clínica (review_status)" as Rev {
+  [*] --> PENDING : creado con\ncalculated_risk
+  PENDING --> PENDING : el veterinario corrige el riesgo\n(validated_risk)
+  PENDING --> REVIEWED : marcar como revisado\n(reviewed_at = ahora)
+  REVIEWED --> [*]
+}
+
+note bottom of Rev
+  El cambio de calculated_risk / validated_risk
+  queda registrado en el historial (simple_history).
+end note
+
+@enduml

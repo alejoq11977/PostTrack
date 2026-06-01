@@ -1,0 +1,61 @@
+@startuml casos-de-uso-propietario
+title PostTrack — Casos de Uso focalizados: Propietario
+
+left to right direction
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam actorStyle awesome
+skinparam usecaseBackgroundColor #EAF2F8
+skinparam usecaseBorderColor #2471A3
+skinparam defaultFontName "Helvetica"
+
+actor "Propietario" as Owner
+actor "Firebase Auth" as FB <<external>>
+actor "Sistema" as Sys <<system>>
+
+rectangle "PostTrack — Portal del propietario" {
+  usecase "Iniciar sesión" as UC_login
+  usecase "Aceptar política y\nautorización de datos\n(por clínica)" as UC_terms
+  usecase "Ver mis mascotas" as UC_pets
+  usecase "Ver detalle de mascota\ny sus monitoreos" as UC_detail
+  usecase "Enviar reporte postoperatorio" as UC_report
+  usecase "Responder cuestionario fijo\n(21 preguntas Sí/No)" as UC_fixed
+  usecase "Responder cuestionario\npersonalizado" as UC_custom
+  usecase "Registrar observaciones libres" as UC_notes
+  usecase "Adjuntar fotos de la herida\n(hasta 4)" as UC_photos
+  usecase "Ver historial de reportes" as UC_history
+  usecase "Actualizar perfil" as UC_profile
+  usecase "Desactivar cuenta" as UC_deactivate
+  usecase "Calcular riesgo del reporte\n(según ventana temporal)" as UC_calc
+}
+
+Owner --> UC_login
+Owner --> UC_terms
+Owner --> UC_pets
+Owner --> UC_detail
+Owner --> UC_report
+Owner --> UC_history
+Owner --> UC_profile
+Owner --> UC_deactivate
+
+UC_login ..> FB : <<include>>
+UC_report ..> UC_fixed : <<include>>
+UC_report ..> UC_custom : <<include>>
+UC_report ..> UC_notes : <<extend>>
+UC_report ..> UC_photos : <<extend>>
+
+UC_report ..> UC_calc : <<include>>
+UC_calc <-- Sys
+
+note bottom of UC_report
+  El reporte solo se habilita si el monitoreo
+  está ACTIVO y ya se registró la salida a casa
+  (home_release_date <= ahora).
+end note
+
+note right of UC_fixed
+  Solo el cuestionario fijo alimenta el
+  cálculo automático de riesgo.
+end note
+
+@enduml

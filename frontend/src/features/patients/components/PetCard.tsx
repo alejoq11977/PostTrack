@@ -1,4 +1,4 @@
-import { Activity, ChevronRight } from 'lucide-react';
+import { Activity, AlertTriangle, ChevronRight } from 'lucide-react';
 import { Patient } from '../types/patient.model';
 
 interface PetCardProps {
@@ -8,6 +8,7 @@ interface PetCardProps {
 
 export const PetCard = ({ patient, onClick }: PetCardProps) => {
   const hasActiveMonitorings = patient.monitorings?.some(m => m.status === 'ACTIVE');
+  const hasOverdue = patient.monitorings?.some(m => m.status === 'ACTIVE' && m.is_overdue);
 
   const isCat = patient.species.toLowerCase().includes('felin') || patient.species.toLowerCase().includes('gat');
 
@@ -42,7 +43,12 @@ export const PetCard = ({ patient, onClick }: PetCardProps) => {
           <span className="text-white text-lg font-semibold tracking-tight drop-shadow-sm">
             {patient.name}
           </span>
-          {hasActiveMonitorings && (
+          {hasOverdue ? (
+            <span className="inline-flex items-center gap-1 bg-red-500/95 text-white text-sm font-semibold px-2.5 py-1 rounded shadow-sm">
+              <AlertTriangle size={12} strokeWidth={2.5} />
+              Reporte pendiente
+            </span>
+          ) : hasActiveMonitorings && (
             <span className="inline-flex items-center gap-1 bg-amber-400/90 text-amber-950 text-sm font-semibold px-2.5 py-1 rounded">
               <Activity size={12} strokeWidth={2.5} />
               En recuperación

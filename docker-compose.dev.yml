@@ -46,7 +46,7 @@ services:
       dockerfile: Dockerfile
     container_name: posttrack_celery
     working_dir: /app/src
-    command: celery -A config worker -l INFO
+    command: celery -A config worker -B -l INFO
     volumes:
       - ./backend:/app
       - media_data:/app/src/media 

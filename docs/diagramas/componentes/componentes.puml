@@ -1,0 +1,88 @@
+@startuml componentes
+title PostTrack — Diagrama de Componentes (arquitectura lógica)
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam componentStyle rectangle
+skinparam defaultFontName "Helvetica"
+skinparam componentBackgroundColor #EBF5FB
+skinparam componentBorderColor #21618C
+skinparam databaseBackgroundColor #FEF9E7
+skinparam databaseBorderColor #B7950B
+
+actor "Propietario" as owner
+actor "Veterinario /\nAdministrador" as vet
+
+package "Frontend SPA (React 19 + Vite + TypeScript)" {
+  [Auth (AuthContext)] as feAuth
+  [Clinics (ClinicContext)] as feClinic
+  [Patients] as fePatient
+  [Monitoring\n(ReportForm / Stepper)] as feReport
+  [Vet\n(Dashboard / Alertas / Detalle)] as feVet
+  [API client (Axios)\n+ interceptores] as feApi
+}
+
+package "Backend (Django 5 + DRF)" {
+  [FirebaseAuthentication] as beAuth
+  [ClinicAccessMiddleware] as beMw
+  component "App users" as appUsers
+  component "App clinics" as appClinics
+  component "App patients\n(motor de reglas)" as appPatients
+  component "App monitoring\n(reportes + tareas)" as appMon
+  component "App vet\n(API de revisión + SSE)" as appVet
+  component "App core\n(servicios email/imgbb)" as appCore
+}
+
+queue "Redis\n(broker)" as redis
+node "Celery worker + beat" as celery
+database "PostgreSQL" as db
+
+cloud "Firebase Auth" as fb
+cloud "Brevo (SMTP)" as brevo
+cloud "ImgBB" as imgbb
+
+' --- Usuarios ---
+owner --> feReport
+owner --> fePatient
+vet --> feVet
+
+' --- Frontend interno ---
+feAuth ..> feApi
+feClinic ..> feApi
+fePatient ..> feApi
+feReport ..> feApi
+feVet ..> feApi
+
+' --- Frontend -> Backend ---
+feApi --> beMw : HTTPS / JSON\n(Bearer token + X-Clinic-Id)
+feVet --> appVet : SSE /alerts/stream
+
+' --- Backend pipeline ---
+beMw --> beAuth
+beAuth ..> fb : verify_id_token
+beMw --> appUsers
+beMw --> appClinics
+beMw --> appPatients
+beMw --> appMon
+beMw --> appVet
+
+appMon ..> appPatients : evaluate_risk()
+appVet ..> appMon : lee Report/Monitoring
+appUsers ..> appCore : correos
+appMon ..> appCore : correos / imgbb
+
+' --- Persistencia y tareas ---
+appUsers --> db
+appClinics --> db
+appPatients --> db
+appMon --> db
+appVet --> db
+
+appMon --> redis : encola tareas
+celery --> redis : consume
+celery --> db
+celery ..> brevo : recordatorios / activación
+celery ..> imgbb : sube evidencia
+appCore ..> brevo
+
+@enduml

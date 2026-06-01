@@ -1,0 +1,86 @@
+@startuml casos-de-uso-veterinario
+title PostTrack — Casos de Uso focalizados: Veterinario / Administrador
+
+left to right direction
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam actorStyle awesome
+skinparam usecaseBackgroundColor #E8F8F5
+skinparam usecaseBorderColor #148F77
+skinparam defaultFontName "Helvetica"
+
+actor "Veterinario" as Vet
+actor "Administrador" as Admin
+actor "Sistema" as Sys <<system>>
+actor "Servicio de correo\n(Brevo)" as Mail <<external>>
+
+Admin --|> Vet
+
+rectangle "PostTrack — Consola clínica" {
+
+  package "Sesión y contexto" {
+    usecase "Iniciar sesión" as UC_login
+    usecase "Seleccionar clínica activa\n(X-Clinic-Id)" as UC_clinic
+  }
+
+  package "Revisión de reportes" {
+    usecase "Ver tablero con estadísticas" as UC_dash
+    usecase "Ver alertas en tiempo real (SSE)" as UC_alerts
+    usecase "Ver reportes faltantes (vencidos)" as UC_missing
+    usecase "Ver bandeja de reportes\n(orden por prioridad de riesgo)" as UC_inbox
+    usecase "Ver detalle del reporte\n(respuestas, fotos, notas)" as UC_detail
+    usecase "Validar / corregir nivel de riesgo" as UC_validate
+    usecase "Marcar reporte como revisado" as UC_markrev
+  }
+
+  package "Gestión clínica" {
+    usecase "Buscar y crear propietarios" as UC_owner
+    usecase "Buscar, crear y editar pacientes" as UC_patient
+    usecase "Crear monitoreo quirúrgico\n(tipo, fecha, frecuencia,\npreguntas personalizadas)" as UC_mon
+    usecase "Registrar salida a casa" as UC_release
+    usecase "Dar de alta el monitoreo" as UC_discharge
+  }
+
+  package "Administración" {
+    usecase "Vincular veterinario a clínica" as UC_vlink
+    usecase "Desvincular veterinario de clínica" as UC_vunlink
+  }
+}
+
+Vet --> UC_login
+Vet --> UC_clinic
+Vet --> UC_dash
+Vet --> UC_alerts
+Vet --> UC_missing
+Vet --> UC_inbox
+Vet --> UC_detail
+Vet --> UC_owner
+Vet --> UC_patient
+Vet --> UC_mon
+Vet --> UC_release
+Vet --> UC_discharge
+
+Admin --> UC_vlink
+Admin --> UC_vunlink
+
+UC_detail ..> UC_validate : <<extend>>
+UC_detail ..> UC_markrev : <<extend>>
+UC_dash ..> UC_alerts : <<include>>
+UC_dash ..> UC_missing : <<include>>
+UC_owner ..> Mail : <<include>>\n(correo de activación)
+UC_alerts <-- Sys
+UC_missing <-- Sys
+
+note bottom of UC_validate
+  Establece Report.validated_risk
+  (corrección del riesgo calculado).
+  Marcar revisado fija review_status=REVIEWED
+  y reviewed_at.
+end note
+
+note right of UC_clinic
+  El acceso a todos los datos se filtra por
+  la clínica seleccionada (ClinicAccessMiddleware).
+end note
+
+@enduml

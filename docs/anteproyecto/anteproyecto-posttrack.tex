@@ -1,0 +1,527 @@
+\documentclass[stu, spanish]{apa7}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{csquotes}
+\usepackage[spanish, es-tabla]{babel}
+\usepackage{booktabs}
+\usepackage{hanging}
+\usepackage{array}
+\usepackage{longtable}
+
+% --- DATOS DE LA PORTADA ---
+\title{Sistema de apoyo para la detecci\'{o}n temprana de riesgo postoperatorio en pacientes veterinarios mediante monitoreo y recolecci\'{o}n estructurada de datos}
+\shorttitle{Detecci\'{o}n temprana de riesgo postoperatorio}
+\author{Jos\'{e} Alejandro Quintero Gahona}
+\affiliation{Universidad Tecnológica de Pereira}
+\course{Ingeniería de sistemas y computación}
+\professor{Maritza Ospina Parra}
+\duedate{\today}
+
+\begin{document}
+
+\maketitle
+
+% =====================================================================
+% 2. DEFINICIÓN DEL PROBLEMA
+% =====================================================================
+\section{Definici\'{o}n del problema}
+
+\subsection{Antecedentes del problema}
+El periodo posterior a una cirug\'{i}a es una etapa cr\'{i}tica en la que los pacientes veterinarios se encuentran especialmente vulnerables. Tras una operaci\'{o}n, el animal puede presentar diversos cambios f\'{i}sicos que, si no se vigilan adecuadamente, retrasan su recuperaci\'{o}n, incrementan los gastos m\'{e}dicos o derivan en complicaciones graves que ponen en peligro su vida (Rubio Tapia et al., 2025). La literatura muestra que las complicaciones postoperatorias, sobre todo en cirug\'{i}as ortop\'{e}dicas, de tejidos blandos o del sistema reproductivo, son frecuentes y pueden ir desde problemas leves hasta situaciones que obligan a hospitalizar al animal de inmediato (Engdahl et al., 2021; Spadari et al., 2023).
+
+En t\'{e}rminos cuantitativos, la complicaci\'{o}n m\'{a}s documentada es la Infecci\'{o}n del Sitio Quir\'{u}rgico (ISQ o SSI, por sus siglas en ingl\'{e}s), que puede ser superficial, profunda o afectar \'{o}rganos internos (Turkki et al., 2023). La evidencia disponible reporta tasas de ISQ en procedimientos quir\'{u}rgicos limpios en perros que se sit\'{u}an aproximadamente entre el 3\,\% y el 6\,\%, y que se incrementan de manera notable en cirug\'{i}as limpias-contaminadas y contaminadas (Stetter et al., 2021; Fuertes Recuero, 2024). En contextos de cirug\'{i}as contaminadas, como la piometra, la proporci\'{o}n de pacientes que desarrollan complicaciones postoperatorias es considerablemente mayor, tal como evidencia la revisi\'{o}n retrospectiva de 140 casos realizada por Turkki et al.\ (2023). Estas infecciones suelen producirse porque la herida queda expuesta a la flora bacteriana de la piel o se contamina cuando la mascota transita por zonas del hogar que no est\'{a}n limpias. Junto a la ISQ, son frecuentes la acumulaci\'{o}n de l\'{i}quido bajo la piel (seromas), la apertura de la herida (dehiscencia) o las reacciones adversas al material de sutura (Sp\r{a}re et al., 2021), as\'{i} como alteraciones digestivas y, en cirug\'{i}as abdominales mayores, peritonitis (Turkki et al., 2023).
+
+Que estas complicaciones ocurran en el hogar se relaciona con un problema central: los propietarios carecen de conocimientos m\'{e}dicos y su observaci\'{o}n es altamente subjetiva. Una vez el paciente sale de la cl\'{i}nica, la tarea de detectar cualquier s\'{i}ntoma anormal recae completamente sobre el due\~{n}o. Seg\'{u}n Turkki et al.\ (2023), la evaluaci\'{o}n del paciente depende de qu\'{e} tan capaz sea el propietario de notar y describir peque\~{n}os cambios en el comportamiento de su mascota. El problema es que las personas no est\'{a}n entrenadas para reconocer se\~{n}ales tempranas de infecci\'{o}n, como enrojecimiento leve, dolor localizado, aumento de temperatura en la zona de la herida o la aparici\'{o}n de secreci\'{o}n purulenta (Sp\r{a}re et al., 2021).
+
+Esto se agrava porque muchas especies y razas tienen el instinto de ocultar la enfermedad o el dolor cuando est\'{a}n estresadas. Por ello, los due\~{n}os con frecuencia solo avisan al veterinario cuando la infecci\'{o}n o la inflamaci\'{o}n ya est\'{a} muy avanzada (Engdahl et al., 2021; Turkki et al., 2023). En consecuencia, la identificaci\'{o}n del riesgo se vuelve imprecisa y dependiente de juicios poco claros, lo que retrasa la actuaci\'{o}n del profesional.
+
+A esta dificultad observacional se suma un segundo problema relacionado con la comunicaci\'{o}n. Aunque las cl\'{i}nicas entregan instrucciones al dar de alta a la mascota, estas suelen estar pensadas para el control presencial, dejando descuidado el seguimiento diario en casa. Para cubrir ese vac\'{i}o, muchos utilizan mensajer\'{i}a informal (como WhatsApp), lo que genera un flujo de informaci\'{o}n desordenado: los veterinarios reciben mensajes confusos o fotograf\'{i}as sin contexto que los saturan y no permiten estimar correctamente el nivel de riesgo (Caney et al., 2022).
+
+Frente a estos retos, las tendencias actuales en el cuidado postoperatorio apuntan a la telemedicina y al monitoreo remoto como herramientas clave para la seguridad del paciente. Seg\'{u}n Jeyanthi et al.\ (2024), el uso de plataformas tecnol\'{o}gicas estructuradas contribuye a evitar readmisiones hospitalarias, ya que permiten la comunicaci\'{o}n en tiempo real y gu\'{i}an al propietario en la revisi\'{o}n de signos y la evoluci\'{o}n de la recuperaci\'{o}n. La telemedicina no solo reduce la ansiedad del cuidador, sino que permite detectar problemas que pasar\'{i}an desapercibidos en un control tradicional (Jeyanthi et al., 2024). En este contexto cobran importancia los Sistemas de Apoyo a la Decisi\'{o}n Cl\'{i}nica (CDSS): investigaciones recientes confirman que el uso de modelos l\'{o}gicos y algoritmos con cuestionarios a distancia ayuda a organizar la informaci\'{o}n, reducir la carga de trabajo del especialista y detectar de forma estandarizada qu\'{e} pacientes requieren atenci\'{o}n urgente (Beyer et al., 2025; Yusuf et al., 2024). Por ello, desarrollar un sistema basado en reglas cl\'{i}nicas que ordene los datos del propietario y genere alertas oportunas constituye un paso necesario para reducir las complicaciones postoperatorias y mejorar el cuidado animal.
+
+\subsection{Enunciado del problema}
+En la pr\'{a}ctica veterinaria actual, el seguimiento del paciente que se recupera de una cirug\'{i}a en casa no cuenta con un m\'{e}todo estandarizado ni constante. Una vez el animal es dado de alta, la responsabilidad de la vigilancia cl\'{i}nica recae exclusivamente sobre el propietario, quien generalmente carece de los conocimientos m\'{e}dicos necesarios para interpretar la evoluci\'{o}n de los signos. A esta delegaci\'{o}n se suma el comportamiento adaptativo de muchas especies, que ocultan signos de debilidad o dolor, provocando que el malestar pase desapercibido en sus etapas iniciales.
+
+La limitaci\'{o}n observacional del propietario introduce un alto nivel de subjetividad: un cuidador sin formaci\'{o}n m\'{e}dica dif\'{i}cilmente diferencia una inflamaci\'{o}n esperable del proceso de cicatrizaci\'{o}n del inicio de un seroma o una ISQ. Como resultado, las complicaciones casi siempre se reportan de forma tard\'{i}a, cuando el cuadro cl\'{i}nico ya se ha agravado, lo que empeora la salud de la mascota e incrementa la probabilidad de intervenciones de urgencia. Cuando el propietario finalmente detecta una anomal\'{i}a y contacta a la cl\'{i}nica, la comunicaci\'{o}n informal genera un flujo de informaci\'{o}n ca\'{o}tico que impide al profesional realizar una evaluaci\'{o}n precisa a distancia y provoca sobrecarga cognitiva y operativa, con el riesgo latente de que un caso verdaderamente urgente se pierda entre m\'{u}ltiples consultas menores.
+
+Todo este escenario refleja una brecha tecnol\'{o}gica en el sector: mientras otras \'{a}reas de la salud implementan protocolos automatizados, en medicina veterinaria escasean las herramientas sistem\'{a}ticas para clasificar el nivel de riesgo de un paciente a distancia (Yusuf et al., 2024). Al no existir un protocolo estandarizado que formule las preguntas correctas al propietario, la informaci\'{o}n recolectada no puede medirse, compararse ni utilizarse para anticipar escenarios de riesgo. Las consecuencias son tangibles: aumento de la morbilidad y mortalidad postoperatoria, desgaste emocional y gastos imprevistos para el propietario, y uso ineficiente de los recursos de la cl\'{i}nica.
+
+Por lo tanto, se requiere una herramienta tecnol\'{o}gica que permita recolectar, clasificar y traducir lo que el propietario observa en casa en informaci\'{o}n m\'{e}dica \'{u}til, acortando la distancia comunicativa entre el cuidador y el profesional mediante par\'{a}metros estructurados. A partir de esta situaci\'{o}n surge la siguiente pregunta de investigaci\'{o}n: \textquestiondown De qu\'{e} manera el desarrollo de un sistema de monitoreo postoperatorio basado en reglas cl\'{i}nicas puede organizar la recolecci\'{o}n de datos desde el hogar y apoyar al veterinario en la detecci\'{o}n temprana de riesgos en animales peque\~{n}os?
+
+% =====================================================================
+% 3. JUSTIFICACIÓN
+% =====================================================================
+\section{Justificaci\'{o}n}
+El desarrollo de un sistema de apoyo para la detecci\'{o}n temprana de riesgo postoperatorio aporta beneficios concretos y medibles a los tres actores involucrados en el proceso de recuperaci\'{o}n: el paciente, el propietario y la cl\'{i}nica veterinaria. Al estructurar la recolecci\'{o}n de informaci\'{o}n en el hogar, el sistema convierte la observaci\'{o}n subjetiva del cuidador en datos comparables y trazables, lo que permite que las complicaciones se detecten en etapas tempranas y no cuando el cuadro cl\'{i}nico ya es cr\'{i}tico.
+
+Desde la perspectiva cl\'{i}nica, la detecci\'{o}n oportuna de signos de alerta reduce la incidencia de complicaciones graves que llegan a la fase avanzada, como la dehiscencia de suturas, la peritonitis o las infecciones profundas del sitio quir\'{u}rgico. En consonancia con la evidencia en telemedicina y monitoreo remoto, esto se traduce en una disminuci\'{o}n de las readmisiones hospitalarias y en una mejora de la seguridad del paciente (Jeyanthi et al., 2024; McLean et al., 2023). Un seguimiento estructurado tambi\'{e}n favorece una cicatrizaci\'{o}n m\'{a}s controlada y reduce el tiempo total de recuperaci\'{o}n.
+
+Para el propietario, contar con una herramienta que le indique qu\'{e} observar y c\'{o}mo reportarlo disminuye la incertidumbre y la ansiedad asociadas al cuidado en casa, a la vez que reduce los gastos imprevistos derivados de readmisiones evitables. El propietario deja de ser un observador desorientado para convertirse en un colaborador activo y guiado del proceso de recuperaci\'{o}n.
+
+Para la cl\'{i}nica veterinaria, la priorizaci\'{o}n autom\'{a}tica de los reportes seg\'{u}n su nivel de riesgo optimiza el uso del recurso humano: el profesional concentra su atenci\'{o}n en los casos urgentes y dedica menos tiempo a descifrar mensajes informales e incompletos. Esto reduce la sobrecarga cognitiva, mejora la eficiencia operativa y refuerza la calidad percibida del servicio postoperatorio. Adem\'{a}s, el registro hist\'{o}rico estructurado que genera el sistema constituye un activo de informaci\'{o}n que puede emplearse para mejorar continuamente los protocolos de la cl\'{i}nica y, a futuro, alimentar modelos predictivos m\'{a}s avanzados.
+
+Finalmente, el proyecto contribuye a cerrar una brecha tecnol\'{o}gica documentada en el sector veterinario, adaptando al cuidado animal herramientas que ya han demostrado efectividad en la medicina humana. Su valor radica en integrar, en una sola soluci\'{o}n, el monitoreo domiciliario realizado por el propietario, la recolecci\'{o}n estructurada de datos cl\'{i}nicamente relevantes y un sistema de apoyo a la decisi\'{o}n basado en reglas, sin sustituir en ning\'{u}n momento el criterio profesional del veterinario.
+
+% =====================================================================
+% 4. OBJETIVOS
+% =====================================================================
+\section{Objetivos del proyecto}
+
+\subsection{Objetivo general}
+Desarrollar un sistema de apoyo para la detecci\'{o}n temprana de riesgos postoperatorios en pacientes veterinarios, que organice la recolecci\'{o}n estructurada de informaci\'{o}n cl\'{i}nica desde el hogar y clasifique autom\'{a}ticamente el nivel de riesgo (bajo, medio y alto) para facilitar la toma de decisiones del profesional.
+
+\subsection{Objetivos espec\'{i}ficos}
+\begin{itemize}
+    \item \textbf{OE1.} Especificar los requisitos cl\'{i}nicos y funcionales del sistema, identificando las principales complicaciones postoperatorias, los factores de riesgo y las variables observables por el propietario, a partir de la revisi\'{o}n de literatura cient\'{i}fica y la consulta a profesionales del \'{a}rea.
+    \item \textbf{OE2.} Dise\~{n}ar la arquitectura del sistema y el motor de reglas cl\'{i}nicas, definiendo las ventanas temporales, la clasificaci\'{o}n de riesgo por factor y las combinaciones cr\'{i}ticas que determinan la priorizaci\'{o}n de los casos.
+    \item \textbf{OE3.} Implementar el sistema web, incluyendo el m\'{o}dulo de reportes del propietario, el motor de clasificaci\'{o}n autom\'{a}tica, la bandeja de validaci\'{o}n del veterinario y el mecanismo de alertas y recordatorios.
+    \item \textbf{OE4.} Validar el sistema mediante pruebas funcionales y juicio de expertos veterinarios, comprobando la pertinencia cl\'{i}nica de las reglas, la usabilidad de la plataforma y su aplicabilidad en situaciones reales.
+\end{itemize}
+
+% =====================================================================
+% 5. MARCO DE REFERENCIA
+% =====================================================================
+\section{Marco de referencia}
+
+\subsection{Marco te\'{o}rico}
+
+\subsubsection{Monitoreo postoperatorio}
+El monitoreo postoperatorio corresponde al conjunto de actividades orientadas a la vigilancia continua del estado cl\'{i}nico del paciente tras una intervenci\'{o}n quir\'{u}rgica. Su prop\'{o}sito principal es evaluar la evoluci\'{o}n de la recuperaci\'{o}n, identificar signos tempranos de complicaciones y garantizar condiciones adecuadas para la cicatrizaci\'{o}n y el restablecimiento funcional del organismo (Fuertes Recuero, 2024). En el contexto veterinario, este proceso adquiere complejidad adicional porque, tras el alta, la mayor parte del seguimiento se realiza en el entorno domiciliario y pasa a depender del propietario, quien debe observar cambios en variables como el comportamiento, la alimentaci\'{o}n, la temperatura corporal o el estado de la herida (Sp\r{a}re et al., 2021; Turkki et al., 2023). Desde una perspectiva te\'{o}rica, el monitoreo efectivo requiere la definici\'{o}n de variables observables, la estandarizaci\'{o}n de criterios de evaluaci\'{o}n y la frecuencia de registro de la informaci\'{o}n (McLean et al., 2023; McLean et al., 2024); en ausencia de protocolos estructurados, el seguimiento se vuelve reactivo, mientras que un monitoreo estructurado permite identificar patrones y anticipar eventos adversos (Fuertes Recuero, 2024; Jeyanthi et al., 2024).
+
+\subsubsection{Telemedicina veterinaria}
+La telemedicina veterinaria se define como la aplicaci\'{o}n de tecnolog\'{i}as de la informaci\'{o}n y la comunicaci\'{o}n para la prestaci\'{o}n de servicios de salud animal a distancia, incluyendo la consulta, el monitoreo, la educaci\'{o}n del propietario y el teletriaje (Abu-Seida et al., 2024; Kurniawan et al., 2026). Este enfoque permite mantener la continuidad del cuidado cl\'{i}nico sin presencia f\'{i}sica, lo cual resulta especialmente relevante en el seguimiento postoperatorio, y se sustenta en la capacidad de transferir informaci\'{o}n cl\'{i}nica de manera remota mediante datos textuales, im\'{a}genes y registros audiovisuales (Abu-Seida et al., 2024; Jeyanthi et al., 2024). Su efectividad depende en gran medida de la calidad y organizaci\'{o}n de la informaci\'{o}n transmitida: cuando los datos se generan de forma no estructurada, como en la comunicaci\'{o}n informal por mensajer\'{i}a, se reporta una p\'{e}rdida de precisi\'{o}n cl\'{i}nica y un aumento de la carga interpretativa del profesional (Caney et al., 2022). El presente proyecto retoma este concepto y lo complementa con mecanismos de recolecci\'{o}n estructurada de informaci\'{o}n.
+
+\subsubsection{Sistemas de apoyo a la decisi\'{o}n cl\'{i}nica (CDSS)}
+Los Sistemas de Apoyo a la Decisi\'{o}n Cl\'{i}nica (CDSS) son herramientas dise\~{n}adas para asistir a los profesionales de la salud en la toma de decisiones mediante el procesamiento de datos cl\'{i}nicos y la aplicaci\'{o}n de conocimiento m\'{e}dico estructurado (Subrahmanya et al., 2022; Yusuf et al., 2024). Funcionan como intermediarios entre la informaci\'{o}n disponible y la acci\'{o}n cl\'{i}nica, proporcionando recomendaciones, alertas o clasificaciones que orientan el juicio del especialista (Batko y \'{S}l\k{e}zak, 2022). Pueden basarse en distintos enfoques, entre los que destacan los modelos basados en reglas, que utilizan estructuras l\'{o}gicas del tipo \textquoteleft si-entonces\textquoteright{} (\textit{if-then}) para evaluar condiciones y generar resultados predeterminados (Subrahmanya et al., 2022). Una ventaja de estos modelos es su transparencia y facilidad de interpretaci\'{o}n, en contraste con modelos m\'{a}s complejos como los de aprendizaje autom\'{a}tico, que ofrecen mayor capacidad predictiva pero menor explicabilidad (Jin et al., 2025; Yusuf et al., 2024). En este proyecto, el CDSS se concibe como el componente central que procesa la informaci\'{o}n recolectada en el hogar y la transforma en una clasificaci\'{o}n estructurada de riesgo, sin reemplazar el criterio del veterinario, incorporando adem\'{a}s un ciclo de validaci\'{o}n humana que permite confirmar o corregir cada clasificaci\'{o}n autom\'{a}tica.
+
+\subsection{Marco conceptual}
+
+\subsubsection{Reglas cl\'{i}nicas}
+Las reglas cl\'{i}nicas constituyen la base l\'{o}gica sobre la cual operan los sistemas de apoyo a la decisi\'{o}n basados en reglas. Se definen como conjuntos de condiciones y resultados que establecen relaciones entre variables cl\'{i}nicas y posibles estados del paciente, expresadas mediante estructuras condicionales que determinan una acci\'{o}n o clasificaci\'{o}n a partir de la presencia o ausencia de ciertos factores (Jin et al., 2025; Yusuf et al., 2024). Al traducir la experiencia cl\'{i}nica en reglas expl\'{i}citas, se reduce la variabilidad en la interpretaci\'{o}n de los datos y se promueve una evaluaci\'{o}n consistente (Subrahmanya et al., 2022). En este proyecto, las reglas se construyen a partir de factores observables por el propietario y contemplan tres dimensiones: la presencia aislada de cada factor, la acumulaci\'{o}n de m\'{u}ltiples factores y las combinaciones espec\'{i}ficas que, por su relevancia cl\'{i}nica, indican gravedad incluso cuando los factores individuales no lo har\'{i}an (Fuertes Recuero, 2024; Turkki et al., 2023). Asimismo, incorporan una dimensi\'{o}n temporal, ya que un mismo signo puede tener distinta gravedad seg\'{u}n el d\'{i}a postoperatorio en que se manifieste (Stetter et al., 2021).
+
+\subsubsection{Clasificaci\'{o}n de riesgo (bajo, medio, alto)}
+La clasificaci\'{o}n de riesgo es el proceso mediante el cual se categoriza el estado del paciente en funci\'{o}n de la probabilidad y gravedad de posibles complicaciones (Yusuf et al., 2024). En el contexto postoperatorio permite priorizar la atenci\'{o}n y orientar las decisiones cl\'{i}nicas (Jeyanthi et al., 2024). El sistema establece tres niveles --- bajo, medio y alto ---, diferenciando entre manifestaciones leves o esperables del proceso de recuperaci\'{o}n, signos de alerta temprana y condiciones que representan un riesgo significativo (Fuertes Recuero, 2024; Turkki et al., 2023). La asignaci\'{o}n del nivel no es est\'{a}tica, sino que depende de la fase del periodo postoperatorio en la que se realiza el reporte (Engdahl et al., 2021; Stetter et al., 2021).
+
+\subsubsection{Recolecci\'{o}n estructurada de datos}
+La recolecci\'{o}n estructurada de datos se refiere al proceso de capturar informaci\'{o}n mediante formatos predefinidos que permiten su organizaci\'{o}n, an\'{a}lisis y procesamiento sistem\'{a}tico (McLean et al., 2024). Frente a la recolecci\'{o}n no estructurada, caracter\'{i}stica de la comunicaci\'{o}n informal y basada en descripciones libres ambiguas o incompletas (Caney et al., 2022), el sistema implementa preguntas cerradas de tipo binario (S\'{i}/No) orientadas a identificar la presencia o ausencia de factores cl\'{i}nicos. Este enfoque se complementa con espacios para observaciones abiertas y registro de evidencia fotogr\'{a}fica, logrando un equilibrio entre estandarizaci\'{o}n y flexibilidad (Mitek et al., 2022).
+
+\subsubsection{Ventanas temporales postoperatorias}
+Se denomina ventana temporal a cada uno de los intervalos en que se divide el periodo postoperatorio, medidos en horas a partir del momento exacto de la cirug\'{i}a. El concepto reconoce que la gravedad de un mismo signo cl\'{i}nico var\'{i}a seg\'{u}n el momento de su aparici\'{o}n: un factor puede ser esperable en las primeras horas y, en cambio, constituir un indicador de complicaci\'{o}n si persiste o aparece en fases posteriores. Esta dimensi\'{o}n temporal es el eje que articula la asignaci\'{o}n din\'{a}mica de niveles de riesgo descrita en el dise\~{n}o metodol\'{o}gico.
+
+\subsection{Marco legal}
+El desarrollo y la operaci\'{o}n del sistema se enmarcan en la normativa colombiana aplicable al tratamiento de datos y al ejercicio profesional de la medicina veterinaria, as\'{i} como en los lineamientos emergentes sobre telemedicina.
+
+\textbf{Ley 1581 de 2012 (protecci\'{o}n de datos personales / habeas data).} El sistema recolecta y almacena datos personales del propietario (identificaci\'{o}n y contacto) e informaci\'{o}n cl\'{i}nica asociada al paciente. En consecuencia, su dise\~{n}o debe observar los principios de finalidad, libertad, veracidad, transparencia, acceso restringido y seguridad establecidos por la Ley 1581 de 2012 y sus decretos reglamentarios (Congreso de la Rep\'{u}blica de Colombia, 2012). Esto implica obtener autorizaci\'{o}n previa e informada para el tratamiento de los datos, garantizar el aislamiento de la informaci\'{o}n entre cl\'{i}nicas y permitir el ejercicio de los derechos de consulta, actualizaci\'{o}n y supresi\'{o}n por parte de los titulares.
+
+\textbf{Ley 576 de 2000 (C\'{o}digo de \'{E}tica para el ejercicio profesional de la medicina veterinaria y zootecnia).} El sistema act\'{u}a como herramienta de apoyo y no sustituye el juicio del profesional. Su uso debe respetar las disposiciones del c\'{o}digo de \'{e}tica que rigen la relaci\'{o}n profesional-paciente-propietario, la responsabilidad cl\'{i}nica y el deber de cuidado (Congreso de la Rep\'{u}blica de Colombia, 2000). Por ello, la decisi\'{o}n final sobre cada caso permanece siempre en manos del m\'{e}dico veterinario, mientras que la clasificaci\'{o}n autom\'{a}tica se concibe \'{u}nicamente como insumo de priorizaci\'{o}n.
+
+\textbf{Normativa sobre telemedicina y ejercicio profesional a distancia.} Dado que el sistema habilita un canal de seguimiento remoto, su implementaci\'{o}n considera los lineamientos relativos a la prestaci\'{o}n de servicios de salud a distancia y a la responsabilidad derivada del ejercicio profesional por medios tecnol\'{o}gicos. La literatura especializada se\~{n}ala que la regulaci\'{o}n del ejercicio veterinario a distancia a\'{u}n se encuentra en evoluci\'{o}n y que constituye una de las principales limitaciones de la telemedicina (Abu-Seida et al., 2024; Kurniawan et al., 2026), por lo que el sistema se dise\~{n}a como complemento del control presencial y no como su reemplazo.
+
+% =====================================================================
+% 6. ESTADO DEL ARTE
+% =====================================================================
+\section{Estado del arte}
+
+\subsection{Casos de estudio sobre monitoreo postoperatorio remoto}
+La implementaci\'{o}n del monitoreo postoperatorio mediante herramientas digitales ha sido evaluada principalmente en medicina humana, donde existen casos de estudio que aportan evidencia sobre su efectividad y desaf\'{i}os pr\'{a}cticos. McLean et al.\ (2023) evaluaron el monitoreo digital remoto de heridas postoperatorias en la pr\'{a}ctica quir\'{u}rgica de rutina, reportando resultados favorables en la detecci\'{o}n temprana de complicaciones y en la reducci\'{o}n de visitas presenciales innecesarias, con mejoras en la oportunidad de la atenci\'{o}n y en la satisfacci\'{o}n del paciente. En un estudio cualitativo complementario, McLean et al.\ (2024) analizaron las barreras y facilitadores para su implementaci\'{o}n rutinaria, identificando como facilitadores la presencia de protocolos estandarizados y la usabilidad de las plataformas, y como barreras la heterogeneidad en la capacidad observacional de los usuarios y la sobrecarga informativa. Aunque la mayor parte de la evidencia proviene de la medicina humana, su transferibilidad al contexto veterinario es plausible debido a la similitud estructural del problema: en ambos casos el seguimiento domiciliario depende de un observador no profesional.
+
+\subsection{Casos de estudio en telemedicina veterinaria}
+Caney et al.\ (2022) analizaron las experiencias de cirujanos veterinarios, personal de enfermer\'{i}a y propietarios durante consultas felinas mediante telemedicina en el contexto de la pandemia de COVID-19, documentando una alta proporci\'{o}n de comunicaciones desestructuradas que dificultaron la evaluaci\'{o}n cl\'{i}nica y generaron sobrecarga interpretativa. Mitek et al.\ (2022) revisaron casos de implementaci\'{o}n de tecnolog\'{i}a vestible (\textit{wearable}) en medicina veterinaria, reportando que estos dispositivos permiten recolectar datos continuos de par\'{a}metros como la frecuencia card\'{i}aca y el nivel de actividad, pero identificaron limitaciones de costo, adopci\'{o}n e integraci\'{o}n con los sistemas cl\'{i}nicos. Abu-Seida et al.\ (2024) y Kurniawan et al.\ (2026) revisaron tendencias, beneficios y desaf\'{i}os de la telemedicina veterinaria, destacando mejoras en accesibilidad y reducci\'{o}n del estr\'{e}s del paciente, junto a limitaciones relacionadas con la calidad de la informaci\'{o}n transmitida y la regulaci\'{o}n del ejercicio a distancia. En el cuidado postoperatorio espec\'{i}fico, Jeyanthi et al.\ (2024) reportaron que el uso combinado de telemedicina y monitoreo remoto contribuy\'{o} a mejorar la recuperaci\'{o}n y la seguridad del paciente, con reducci\'{o}n de readmisiones y detecci\'{o}n oportuna de complicaciones.
+
+\subsection{Casos de estudio sobre CDSS en veterinaria}
+La adopci\'{o}n de CDSS en medicina veterinaria es reciente. Heino (2023) analiz\'{o} el impacto potencial del sistema GekkoVet, un CDSS basado en la introducci\'{o}n estructurada de s\'{i}ntomas, documentando que este tipo de herramientas mejora la consistencia en la formulaci\'{o}n de hip\'{o}tesis diagn\'{o}sticas y reduce la carga cognitiva del profesional, aunque su uso depende de la calidad de los datos ingresados. Jin et al.\ (2025) presentaron un caso de asistencia veterinaria basada en inteligencia artificial, reportando mejoras en la precisi\'{o}n diagn\'{o}stica y en el tiempo de evaluaci\'{o}n inicial, pero se\~{n}alando limitaciones por la necesidad de datos de entrenamiento de alta calidad y la dificultad de interpretar modelos complejos. Yusuf et al.\ (2024) realizaron una revisi\'{o}n de alcance sobre CDSS en contextos de recursos limitados, destacando que los modelos basados en reglas son particularmente \'{u}tiles cuando se requiere transparencia y los datos son limitados, e identificando como limitaci\'{o}n su orientaci\'{o}n predominante hacia profesionales en entornos cl\'{i}nicos. Beyer et al.\ (2025) reportaron casos de transformaci\'{o}n digital en cl\'{i}nicas veterinarias, identificando la integraci\'{o}n de sistemas estructurados de captura y soporte a la decisi\'{o}n como un factor cr\'{i}tico de \'{e}xito.
+
+\subsection{Vac\'{i}o de investigaci\'{o}n}
+El an\'{a}lisis conjunto de los casos revisados evidencia una brecha significativa en el manejo del cuidado postoperatorio veterinario. Si bien el monitoreo remoto ha mostrado resultados positivos en medicina humana (McLean et al., 2023, 2024), su transferencia al \'{a}mbito veterinario es a\'{u}n incipiente, y los casos de telemedicina veterinaria reportan dificultades por la desestructuraci\'{o}n de la informaci\'{o}n y la sobrecarga del profesional (Caney et al., 2022). Por su parte, los CDSS han demostrado eficacia para estructurar datos y apoyar decisiones (Heino, 2023; Jin et al., 2025; Yusuf et al., 2024), pero su dise\~{n}o actual no contempla la integraci\'{o}n de informaci\'{o}n proveniente de usuarios no expertos en contextos domiciliarios. El vac\'{i}o radica en la ausencia de un sistema que articule de manera efectiva tres componentes: el monitoreo domiciliario realizado por el propietario, la recolecci\'{o}n estructurada de datos cl\'{i}nicamente relevantes y un soporte a la decisi\'{o}n basado en reglas que procese esa informaci\'{o}n. Los casos disponibles abordan cada elemento por separado, pero no existen propuestas que los integren en una soluci\'{o}n dise\~{n}ada espec\'{i}ficamente para traducir las observaciones del propietario en una clasificaci\'{o}n estructurada del riesgo postoperatorio en veterinaria.
+
+% =====================================================================
+% 7. DISEÑO METODOLÓGICO
+% =====================================================================
+\section{Dise\~{n}o metodol\'{o}gico}
+
+El proyecto se desarrolla bajo un enfoque mixto que combina la revisi\'{o}n documental para fundamentar las reglas cl\'{i}nicas con un proceso de desarrollo de software iterativo e incremental. El universo de trabajo lo constituye la informaci\'{o}n cl\'{i}nica asociada a la recuperaci\'{o}n postoperatoria en pacientes veterinarios de especies peque\~{n}as (perros y gatos) en el entorno domiciliario, y la validaci\'{o}n se apoya tanto en fuentes secundarias (art\'{i}culos cient\'{i}ficos, revisiones y documentos t\'{e}cnicos) como en el juicio de profesionales en medicina veterinaria con experiencia en manejo postoperatorio. El alcance se delimita a variables observables por propietarios sin formaci\'{o}n m\'{e}dica, excluyendo par\'{a}metros que requieran instrumentaci\'{o}n cl\'{i}nica especializada.
+
+\subsection{Hip\'{o}tesis}
+El desarrollo de un sistema de monitoreo postoperatorio basado en reglas cl\'{i}nicas, que estructure la recolecci\'{o}n de datos desde el hogar mediante un cuestionario fijo y los procese a trav\'{e}s de un motor de clasificaci\'{o}n sensible a ventanas temporales, permite organizar la informaci\'{o}n del propietario y priorizar autom\'{a}ticamente los casos seg\'{u}n su nivel de riesgo, apoyando al veterinario en la detecci\'{o}n temprana de complicaciones sin sustituir su criterio profesional. De manera espec\'{i}fica, se plantea que un esquema de clasificaci\'{o}n dependiente de la ventana temporal ofrece una valoraci\'{o}n del riesgo m\'{a}s ajustada al curso cl\'{i}nico que un esquema de niveles fijos, y que la priorizaci\'{o}n autom\'{a}tica de reportes reduce el tiempo de respuesta ante casos de alto riesgo.
+
+\subsection{Metodolog\'{i}a del objetivo espec\'{i}fico 1: especificaci\'{o}n de requisitos cl\'{i}nicos y funcionales}
+La consecuci\'{o}n del primer objetivo se aborda mediante una revisi\'{o}n de literatura desarrollada bajo el enfoque de los estudios de mapeo sistem\'{a}tico (SMS, \textit{Systematic Mapping Study}) descrito por Petersen et al.\ (2015) y Kitchenham et al.\ (2009), complementada con la consulta a profesionales para validar la pertinencia y accesibilidad de las variables. La planificaci\'{o}n se estructura mediante el modelo Objetivo-Pregunta-M\'{e}trica (GQM) (Basili, 1992), cuyos elementos se resumen en la Tabla 1.
+
+\begin{table}[htbp]
+\caption{Resumen de los elementos de planificaci\'{o}n del estudio}
+\label{tab:planificacion}
+\footnotesize
+\begin{tabular}{@{}lp{4cm}p{7cm}@{}}
+\toprule
+\textit{Etiqueta} & \textit{Elemento} & \textit{Descripci\'{o}n} \\
+\midrule
+G1 & Meta & Identificar los elementos cl\'{i}nicos y t\'{e}cnicos necesarios para desarrollar un sistema de apoyo a la detecci\'{o}n temprana de riesgo postoperatorio en pacientes veterinarios. \\
+\midrule
+Q1 & Pregunta 1 & \textquestiondown Cu\'{a}les son las principales complicaciones postoperatorias y factores de riesgo identificados en la literatura sobre pacientes veterinarios? \\
+Q2 & Pregunta 2 & \textquestiondown Qu\'{e} limitaciones presenta el monitoreo postoperatorio domiciliario actual en veterinaria? \\
+Q3 & Pregunta 3 & \textquestiondown Qu\'{e} soluciones tecnol\'{o}gicas basadas en telemedicina y CDSS se han implementado para el seguimiento postoperatorio y qu\'{e} resultados han reportado? \\
+Q4 & Pregunta 4 & \textquestiondown Qu\'{e} elementos cl\'{i}nicos y t\'{e}cnicos deben considerarse en el desarrollo de un sistema de apoyo a la decisi\'{o}n basado en reglas para monitoreo postoperatorio veterinario? \\
+\midrule
+M1 & M\'{e}trica 1 & N\'{u}mero y tipo de complicaciones postoperatorias documentadas en los estudios. \\
+M2 & M\'{e}trica 2 & Frecuencia de limitaciones reportadas en el monitoreo domiciliario. \\
+M3 & M\'{e}trica 3 & Cantidad y caracter\'{i}sticas de las soluciones tecnol\'{o}gicas reportadas. \\
+M4 & M\'{e}trica 4 & Elementos comunes en sistemas de apoyo a la decisi\'{o}n cl\'{i}nica veterinaria. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Para delimitar los criterios de b\'{u}squeda se aplic\'{o} el modelo PICOC (\textit{Population, Intervention, Comparison, Outcomes, Context}) (Petticrew y Roberts, 2008), presentado en la Tabla 2.
+
+\begin{table}[htbp]
+\caption{Aplicaci\'{o}n del modelo PICOC al estudio}
+\label{tab:picoc}
+\footnotesize
+\begin{tabular}{@{}lp{10cm}@{}}
+\toprule
+\textit{Categor\'{i}a} & \textit{Descripci\'{o}n} \\
+\midrule
+Poblaci\'{o}n     & Pacientes veterinarios de especies peque\~{n}as (perros y gatos) en periodo postoperatorio domiciliario. \\
+Intervenci\'{o}n  & Sistemas de monitoreo remoto, telemedicina y sistemas de apoyo a la decisi\'{o}n cl\'{i}nica basados en reglas. \\
+Comparaci\'{o}n   & Contraste entre el monitoreo postoperatorio tradicional informal y propuestas estructuradas de monitoreo y soporte a la decisi\'{o}n. \\
+Resultados      & Detecci\'{o}n temprana de complicaciones, reducci\'{o}n de eventos adversos, organizaci\'{o}n de la informaci\'{o}n cl\'{i}nica y optimizaci\'{o}n del flujo de trabajo veterinario. \\
+Contexto        & Cuidado postoperatorio domiciliario en medicina veterinaria de peque\~{n}as especies. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+La b\'{u}squeda se desarroll\'{o} en bases de datos cient\'{i}ficas (Google Scholar, ScienceDirect, PubMed, Scopus, SciELO y repositorios institucionales), complementada con la t\'{e}cnica de bola de nieve hacia atr\'{a}s (Wohlin, 2014). Los t\'{e}rminos principales incluyeron \textit{veterinary postoperative monitoring}, \textit{veterinary telemedicine}, \textit{clinical decision support system veterinary}, \textit{surgical site infection dogs cats}, \textit{remote postoperative wound monitoring} y \textit{postoperative complications small animals}, junto con sus equivalentes en espa\~{n}ol, combinados mediante operadores AND y OR. Los criterios de inclusi\'{o}n y exclusi\'{o}n aplicados se presentan en la Tabla 3.
+
+\begin{table}[htbp]
+\caption{Criterios de inclusi\'{o}n y exclusi\'{o}n}
+\label{tab:criterios}
+\footnotesize
+\begin{tabular}{@{}p{6cm}p{6cm}@{}}
+\toprule
+\textit{Criterios de inclusi\'{o}n} & \textit{Criterios de exclusi\'{o}n} \\
+\midrule
+Art\'{i}culos cient\'{i}ficos, tesis o documentos t\'{e}cnicos publicados entre 2020 y 2026. & Estudios anteriores a 2020 (salvo referencias fundacionales sobre CDSS o telemedicina). \\
+Idiomas espa\~{n}ol o ingl\'{e}s. & Otros idiomas. \\
+Estudios relacionados con monitoreo postoperatorio, telemedicina veterinaria o sistemas de apoyo a la decisi\'{o}n cl\'{i}nica. & Estudios sin relaci\'{o}n directa con el objeto de estudio. \\
+Casos de estudio, estudios emp\'{i}ricos, revisiones sistem\'{a}ticas o revisiones de alcance. & Editoriales, cartas al editor o res\'{u}menes de eventos. \\
+Acceso al texto completo. & Estudios sin acceso al contenido completo. \\
+Estudios en medicina humana o veterinaria con aporte transferible al contexto veterinario postoperatorio. & Estudios en otras \'{a}reas no aplicables al contexto del proyecto. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A partir de los estudios seleccionados se construy\'{o} un esquema de clasificaci\'{o}n de t\'{o}picos (\textit{vertebraci\'{o}n}) siguiendo las recomendaciones de Petersen et al.\ (2008), que organiza la informaci\'{o}n en temas y subtemas asociados a sus referencias y permite trazar c\'{o}mo cada fuente sustenta los componentes del sistema. La Tabla 4 presenta la vertebraci\'{o}n completa.
+
+\begin{longtable}{@{}lp{4.5cm}p{6.5cm}@{}}
+\caption{Vertebraci\'{o}n de la literatura: temas, subtemas y referencias asociadas} \label{tab:vertebracion} \\
+\toprule
+\textit{T\'{o}pico} & \textit{Subtema} & \textit{Referencias} \\
+\midrule
+\endfirsthead
+\multicolumn{3}{c}{\textit{(Continuaci\'{o}n de la Tabla 4)}} \\
+\toprule
+\textit{T\'{o}pico} & \textit{Subtema} & \textit{Referencias} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\multicolumn{3}{c}{T1: Complicaciones postoperatorias en veterinaria} \\
+\midrule
+T1.1 & Infecci\'{o}n del sitio quir\'{u}rgico (ISQ) y signos cl\'{i}nicos & Fuertes Recuero (2024); Buitrago Orjuela et al.\ (2024); Stetter et al.\ (2021); Turkki et al.\ (2023) \\
+T1.2 & Otras complicaciones (seromas, dehiscencia, hematomas, dolor) & Sp\r{a}re et al.\ (2021); Engdahl et al.\ (2021); Spadari et al.\ (2023) \\
+T1.3 & Factores etiol\'{o}gicos y de riesgo & Stetter et al.\ (2021); Chipugsi Alb\'{a}n et al.\ (2026); Lema Heredia (2025); Rubio Tapia et al.\ (2025) \\
+\midrule
+\multicolumn{3}{c}{T2: Monitoreo postoperatorio domiciliario} \\
+\midrule
+T2.1 & Rol del propietario y subjetividad en la observaci\'{o}n & Sp\r{a}re et al.\ (2021); Turkki et al.\ (2023) \\
+T2.2 & Comportamiento adaptativo de los animales (ocultamiento del dolor) & Engdahl et al.\ (2021); Turkki et al.\ (2023) \\
+T2.3 & Brecha entre percepci\'{o}n del cuidador y realidad cl\'{i}nica & McLean et al.\ (2023); McLean et al.\ (2024) \\
+T2.4 & Implementaci\'{o}n estructurada del monitoreo postoperatorio & McLean et al.\ (2023); McLean et al.\ (2024); Fuertes Recuero (2024); Jeyanthi et al.\ (2024) \\
+\midrule
+\multicolumn{3}{c}{T3: Telemedicina veterinaria} \\
+\midrule
+T3.1 & Definici\'{o}n, aplicaciones y modalidades & Abu-Seida et al.\ (2024); Kurniawan et al.\ (2026) \\
+T3.2 & Casos de uso (teletriaje, wearables, monitoreo remoto) & Mitek et al.\ (2022); Yasin et al.\ (s.f.); Jeyanthi et al.\ (2024) \\
+T3.3 & Limitaciones de la comunicaci\'{o}n informal & Caney et al.\ (2022) \\
+\midrule
+\multicolumn{3}{c}{T4: Sistemas de apoyo a la decisi\'{o}n cl\'{i}nica (CDSS)} \\
+\midrule
+T4.1 & Concepto, funciones y beneficios & Subrahmanya et al.\ (2022); Yusuf et al.\ (2024) \\
+T4.2 & CDSS en medicina humana & Batko y \'{S}l\k{e}zak (2022); Subrahmanya et al.\ (2022) \\
+T4.3 & CDSS en veterinaria (casos GekkoVet, IA, transformaci\'{o}n digital) & Heino (2023); Jin et al.\ (2025); Beyer et al.\ (2025) \\
+T4.4 & Modelos basados en reglas y comparaci\'{o}n con aprendizaje autom\'{a}tico & Yusuf et al.\ (2024); Jin et al.\ (2025); Subrahmanya et al.\ (2022) \\
+\midrule
+\multicolumn{3}{c}{T5: Recolecci\'{o}n estructurada de datos cl\'{i}nicos} \\
+\midrule
+T5.1 & Importancia de la estandarizaci\'{o}n de datos cl\'{i}nicos & McLean et al.\ (2024) \\
+T5.2 & Consecuencias de la recolecci\'{o}n no estructurada & Caney et al.\ (2022) \\
+T5.3 & Apoyo visual y evidencia complementaria (im\'{a}genes, wearables) & Mitek et al.\ (2022); McLean et al.\ (2023) \\
+\end{longtable}
+
+El producto de este objetivo es el documento de especificaci\'{o}n de requisitos, que consolida la selecci\'{o}n de los factores cl\'{i}nicos observables por el propietario --- de acuerdo con el criterio de accesibilidad --- y los requisitos funcionales de la plataforma (gesti\'{o}n de pacientes, reportes, clasificaci\'{o}n, validaci\'{o}n y alertas).
+
+\subsection{Metodolog\'{i}a del objetivo espec\'{i}fico 2: dise\~{n}o de la arquitectura y del motor de reglas cl\'{i}nicas}
+Con base en los requisitos, se dise\~{n}a la arquitectura del sistema y la l\'{o}gica del motor de reglas. El sistema procesa variables cl\'{i}nicas observables por el propietario, evaluadas mediante un indicador binario (presencia o ausencia). El elemento distintivo del dise\~{n}o es que el nivel de riesgo asociado a cada factor no es fijo, sino que depende de la ventana temporal del periodo postoperatorio en que se realiza el reporte (Engdahl et al., 2021; Stetter et al., 2021). Se definen tres ventanas medidas en horas a partir del momento exacto de la cirug\'{i}a:
+
+\begin{itemize}
+    \item \textbf{Ventana 1:} de 0 a 48 horas postoperatorias (d\'{i}as 0 a 2).
+    \item \textbf{Ventana 2:} de 49 a 120 horas postoperatorias (d\'{i}as 3 a 5).
+    \item \textbf{Ventana 3:} de 121 horas en adelante, hasta el alta m\'{e}dica (d\'{i}a 6 o posterior).
+\end{itemize}
+
+El sistema calcula internamente el tiempo transcurrido entre la fecha y hora de la cirug\'{i}a y la del reporte para determinar la ventana correspondiente, de manera transparente para el propietario. La Tabla 5 presenta el cuestionario fijo, id\'{e}ntico en todos los reportes y redactado de manera que una respuesta afirmativa siempre signifique presencia del factor (alerta).
+
+\begin{table}[htbp]
+\caption{Cuestionario fijo del sistema y factor cl\'{i}nico asociado}
+\label{tab:preguntas}
+\footnotesize
+\begin{tabular}{@{}cp{8.5cm}l@{}}
+\toprule
+\textit{N\'{u}m.} & \textit{Pregunta dirigida al propietario} & \textit{Factor cl\'{i}nico} \\
+\midrule
+1 & ¿La zona de la herida se ve hinchada? & Hinchaz\'{o}n \\
+2 & ¿Su mascota se ve claramente decaída o menos activa de lo normal? & Decaimiento \\
+3 & ¿Su mascota ha pasado m\'{a}s de 48 horas sin defecar, o sus heces son anormales (con sangre o muy l\'{i}quidas)? & Alteraci\'{o}n en defecaci\'{o}n \\
+4 & ¿Su mascota ha pasado m\'{a}s de 24 horas sin orinar, o tiene dificultad notoria al hacerlo? & Alteraci\'{o}n en micci\'{o}n \\
+5 & ¿Su mascota muestra n\'{a}useas (babeo excesivo, arcadas sin vomitar)? & N\'{a}useas \\
+6 & ¿Su mascota ha vomitado recientemente? & V\'{o}mito \\
+7 & ¿Su mascota est\'{a} rechazando la comida? & Inapetencia \\
+8 & ¿Su mascota est\'{a} bebiendo poca o nada de agua? & Falta de ingesta h\'{i}drica \\
+9 & ¿Su mascota est\'{a} evitando interactuar (no responde, se a\'{i}sla)? & Aislamiento \\
+10 & ¿Sale l\'{i}quido transparente o rosado de la herida? & Supuraci\'{o}n serosa \\
+11 & ¿Sale l\'{i}quido amarillo, verde, espeso o con mal olor de la herida? & Supuraci\'{o}n purulenta \\
+12 & ¿Las orejas, almohadillas o el vientre se sienten anormalmente calientes al tacto? & Fiebre \\
+13 & ¿Su mascota intenta lamer o morder la herida de forma repetida? & Lamido excesivo \\
+14 & Al acercar la mano a la herida, ¿gime, se aparta, gru\~{n}e o intenta morder? & Dolor al tacto \\
+15 & ¿La zona alrededor de la herida se siente m\'{a}s caliente que otras zonas del cuerpo? & Calor local \\
+16 & ¿Alg\'{u}n punto de sutura se ha desprendido o la herida se ha abierto? & Apertura de herida \\
+17 & ¿Su mascota est\'{a} acostada sin levantarse, sin reaccionar al ser llamada o estimulada? & Postraci\'{o}n \\
+18 & ¿Su mascota est\'{a} inconsciente o no responde en absoluto a est\'{i}mulos fuertes (voz, palmadas, tacto)? & Inconsciencia \\
+19 & ¿Sale sangre fresca de la herida en este momento? & Sangrado activo \\
+20 & Estando en reposo (sin haberse movido), ¿respira muy r\'{a}pido o con esfuerzo? & Dificultad respiratoria \\
+21 & ¿El abdomen se ve o se siente muy hinchado o duro? & Distensi\'{o}n abdominal \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+La Tabla 6 define el nivel de riesgo asignado a cada factor seg\'{u}n la ventana temporal del reporte. Cuando el propietario responde \textquoteleft S\'{i}\textquoteright{} a una pregunta, el sistema consulta esta tabla para determinar la categor\'{i}a de riesgo asociada en ese momento del periodo postoperatorio.
+
+\begin{table}[htbp]
+\caption{Niveles de riesgo por factor cl\'{i}nico seg\'{u}n ventana temporal}
+\label{tab:riesgo_ventana}
+\footnotesize
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textit{Factor cl\'{i}nico} & \textit{Ventana 1} & \textit{Ventana 2} & \textit{Ventana 3} \\
+                          & \textit{(0--48 h)} & \textit{(49--120 h)} & \textit{($\geq$121 h)} \\
+\midrule
+Hinchaz\'{o}n              & Bajo  & Medio & Alto \\
+Decaimiento                & Bajo  & Medio & Alto \\
+Alteraci\'{o}n en defecaci\'{o}n & Bajo  & Medio & Alto \\
+Alteraci\'{o}n en micci\'{o}n    & Medio & Alto  & Alto \\
+N\'{a}useas                & Bajo  & Medio & Medio \\
+V\'{o}mito                 & Bajo  & Alto  & Alto \\
+Inapetencia                & Bajo  & Medio & Alto \\
+Falta de ingesta h\'{i}drica & Medio & Alto  & Alto \\
+Aislamiento                & Bajo  & Medio & Alto \\
+Supuraci\'{o}n serosa      & Bajo  & Medio & Alto \\
+Supuraci\'{o}n purulenta   & Alto  & Alto  & Alto \\
+Fiebre                     & Medio & Alto  & Alto \\
+Lamido excesivo            & Medio & Medio & Alto \\
+Dolor al tacto             & Medio & Alto  & Alto \\
+Calor local                & Medio & Alto  & Alto \\
+Apertura de herida         & Alto  & Alto  & Alto \\
+Postraci\'{o}n             & Alto  & Alto  & Alto \\
+Inconsciencia              & Alto  & Alto  & Alto \\
+Sangrado activo            & Alto  & Alto  & Alto \\
+Dificultad respiratoria    & Alto  & Alto  & Alto \\
+Distensi\'{o}n abdominal   & Alto  & Alto  & Alto \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Sobre estas tablas se dise\~{n}a el algoritmo de clasificaci\'{o}n. Para cada reporte, el sistema realiza dos pasos: primero calcula la ventana temporal y asigna a cada respuesta afirmativa el nivel de riesgo de la Tabla 6; luego aplica un conjunto de cuatro reglas en estricto orden de prioridad, de modo que la primera regla que se cumple determina la clasificaci\'{o}n final.
+
+\textbf{Regla 1. Combinaciones cr\'{i}ticas.} Si se cumple alguna de las siguientes combinaciones, la clasificaci\'{o}n es ALTA de manera inmediata, independientemente del conteo de factores:
+
+\begin{itemize}
+    \item Fiebre + supuraci\'{o}n (de cualquier tipo).
+    \item Hinchaz\'{o}n + dolor al tacto + calor local.
+    \item V\'{o}mito + inapetencia + decaimiento.
+    \item Decaimiento + fiebre.
+    \item Inapetencia + alteraci\'{o}n en la defecaci\'{o}n.
+    \item Lamido excesivo + apertura de la herida.
+    \item Hinchaz\'{o}n + supuraci\'{o}n purulenta.
+    \item Falta de ingesta h\'{i}drica + alteraci\'{o}n en la micci\'{o}n.
+\end{itemize}
+
+\textbf{Regla 2. Presencia de factores ALTO.} Si existe uno o m\'{a}s factores clasificados como alto en la ventana correspondiente, la clasificaci\'{o}n es ALTA.
+
+\textbf{Regla 3. Acumulaci\'{o}n de factores MEDIO.} Si no se ha cumplido ninguna regla anterior:
+
+\begin{itemize}
+    \item 1 factor medio: clasificaci\'{o}n MEDIA.
+    \item 2 o m\'{a}s factores medios: clasificaci\'{o}n ALTA.
+\end{itemize}
+
+\textbf{Regla 4. Acumulaci\'{o}n de factores BAJO.} Si no se ha cumplido ninguna regla previa:
+
+\begin{itemize}
+    \item 0 factores positivos: clasificaci\'{o}n BAJA, dado que un paciente postoperatorio nunca se encuentra completamente fuera de riesgo.
+    \item 1 factor bajo: clasificaci\'{o}n BAJA.
+    \item 2 o 3 factores bajos: clasificaci\'{o}n MEDIA.
+    \item 4 o m\'{a}s factores bajos: clasificaci\'{o}n ALTA.
+\end{itemize}
+
+La l\'{o}gica de procesamiento se concibe como un sistema adaptable: tanto los umbrales de acumulaci\'{o}n como las combinaciones cr\'{i}ticas y la asignaci\'{o}n de niveles por ventana pueden parametrizarse y ajustarse a partir de la validaci\'{o}n por expertos y de la informaci\'{o}n recopilada durante el ciclo de retroalimentaci\'{o}n. El producto de este objetivo es el dise\~{n}o de la arquitectura (modelo de datos, componentes y flujos) y la especificaci\'{o}n formal del motor de reglas.
+
+\subsection{Metodolog\'{i}a del objetivo espec\'{i}fico 3: implementaci\'{o}n del sistema}
+La construcci\'{o}n del sistema sigue una metodolog\'{i}a de desarrollo iterativa e incremental, organizada en incrementos funcionales que se integran y prueban de forma continua. El sistema se implementa como una aplicaci\'{o}n web con separaci\'{o}n entre un servicio de backend, responsable de la l\'{o}gica de negocio, el motor de reglas y la persistencia de datos, y una interfaz de frontend para los dos roles principales: propietario y veterinario. Los incrementos contemplan los siguientes m\'{o}dulos:
+
+\begin{itemize}
+    \item \textbf{Gesti\'{o}n y aislamiento por cl\'{i}nica:} registro de cl\'{i}nicas, profesionales y pacientes, garantizando el aislamiento de la informaci\'{o}n entre cl\'{i}nicas conforme al marco legal.
+    \item \textbf{Reportes del propietario:} cada reporte integra cuatro instrumentos: (i) un \textit{cuestionario fijo} de preguntas cerradas (S\'{i}/No) id\'{e}ntico para todo paciente, \'{u}nico que alimenta la clasificaci\'{o}n autom\'{a}tica; (ii) un \textit{cuestionario personalizado} que el veterinario configura al alta seg\'{u}n el procedimiento, sin participar en el c\'{a}lculo; (iii) un \textit{registro de observaciones libres}; y (iv) la \textit{captura de evidencia fotogr\'{a}fica} de la herida.
+    \item \textbf{Motor de clasificaci\'{o}n autom\'{a}tica:} implementaci\'{o}n del c\'{a}lculo de ventana temporal y de las cuatro reglas de prioridad definidas en el objetivo anterior.
+    \item \textbf{Bandeja de validaci\'{o}n del veterinario:} listado de reportes ordenado por prioridad descendente (altos, medios, bajos), con acceso integrado a todas las respuestas, observaciones, fotograf\'{i}as y la clasificaci\'{o}n autom\'{a}tica.
+    \item \textbf{Alertas y recordatorios:} env\'{i}o de notificaciones y recordatorios autom\'{a}ticos de reportes seg\'{u}n la frecuencia (expresada en horas) que el veterinario configura al alta, hasta que se otorgue el alta m\'{e}dica.
+\end{itemize}
+
+Asimismo, se implementa el ciclo de validaci\'{o}n y retroalimentaci\'{o}n: con base en la informaci\'{o}n completa del reporte, el veterinario puede confirmar la clasificaci\'{o}n autom\'{a}tica o corregirla a un nivel superior o inferior, seleccionando un motivo entre opciones predefinidas (factor mal clasificado para la ventana, combinaci\'{o}n no contemplada, falso positivo por interpretaci\'{o}n del propietario, informaci\'{o}n de pregunta personalizada que modifica el cuadro, observaci\'{o}n del propietario que cambia el escenario o evidencia fotogr\'{a}fica que lo modifica) e indicando la acci\'{o}n a tomar (ninguna, contactar al propietario, programar una visita o derivar a urgencias). Cada reporte queda almacenado con las respuestas crudas, la clasificaci\'{o}n autom\'{a}tica, la validada por el veterinario, el motivo de correcci\'{o}n y la acci\'{o}n, conformando un registro hist\'{o}rico que permite ajustar las reglas y sentar las bases para el entrenamiento futuro de modelos de inteligencia artificial.
+
+\subsection{Metodolog\'{i}a del objetivo espec\'{i}fico 4: validaci\'{o}n del sistema}
+La validaci\'{o}n combina pruebas funcionales sobre la aplicaci\'{o}n con la evaluaci\'{o}n por juicio de expertos. En el plano t\'{e}cnico, se ejecutan pruebas que verifican el correcto c\'{a}lculo de las ventanas temporales, la aplicaci\'{o}n del orden de prioridad de las reglas y el comportamiento del sistema de alertas y recordatorios. En el plano cl\'{i}nico, el sistema se somete a la evaluaci\'{o}n de profesionales veterinarios, quienes analizan la pertinencia de las variables seleccionadas, la coherencia de las reglas, la usabilidad de la plataforma y su utilidad en la pr\'{a}ctica, mediante el contraste de casos. Los hallazgos permiten ajustar los par\'{a}metros del motor de reglas (umbrales, combinaciones cr\'{i}ticas y asignaci\'{o}n por ventana) y refinar la interfaz, asegurando la alineaci\'{o}n del sistema con la realidad cl\'{i}nica sin sustituir el criterio del profesional.
+
+% =====================================================================
+% 8. RECURSOS
+% =====================================================================
+\section{Recursos}
+
+\subsection{T\'{e}cnicos}
+El desarrollo se apoya en recursos tecnol\'{o}gicos a los que el investigador ya tiene acceso: equipos de c\'{o}mputo personales con capacidad suficiente para entornos de desarrollo, conexi\'{o}n a internet, y herramientas de software de licencia libre o gratuita para estudiantes. En particular, se emplean un entorno de desarrollo integrado, un sistema de control de versiones (Git), un motor de base de datos relacional, un \textit{framework} de backend para la l\'{o}gica de negocio y el motor de reglas, un \textit{framework} de frontend para las interfaces de propietario y veterinario, y un servicio de tareas programadas para el env\'{i}o de recordatorios y alertas. Adicionalmente, se utilizan las bibliotecas digitales institucionales y el acceso a bases de datos cient\'{i}ficas mediante los convenios de la Universidad Tecnol\'{o}gica de Pereira para la fase de revisi\'{o}n documental.
+
+\subsection{Humanos}
+El equipo de trabajo est\'{a} conformado por el estudiante investigador, responsable del an\'{a}lisis, dise\~{n}o, implementaci\'{o}n y documentaci\'{o}n del sistema, con una dedicaci\'{o}n estimada de aproximadamente 320 horas a lo largo de los cuatro meses de desarrollo (un promedio de 20 horas semanales). El proyecto cuenta con el acompa\~{n}amiento del docente asesor, cubierto dentro del marco del curso, y con la participaci\'{o}n de profesionales en medicina veterinaria con experiencia en manejo postoperatorio, quienes colaboran en la validaci\'{o}n cl\'{i}nica de las variables y las reglas.
+
+\subsection{Otros recursos}
+Dado el car\'{a}cter acad\'{e}mico del proyecto y el uso de recursos ya disponibles, su ejecuci\'{o}n no requiere la asignaci\'{o}n de presupuesto econ\'{o}mico ni implica gastos directos por parte del investigador. El \'{u}nico recurso comprometido es el tiempo dedicado por el investigador. Como recursos complementarios se consideran los espacios institucionales para reuniones de seguimiento y la disponibilidad de los profesionales veterinarios para las sesiones de validaci\'{o}n.
+
+% =====================================================================
+% 9. CRONOGRAMA
+% =====================================================================
+\section{Cronograma}
+
+El desarrollo del proyecto se planifica en un periodo de cuatro meses, organizado de acuerdo con los cuatro objetivos espec\'{i}ficos y sus actividades de desarrollo. Adem\'{a}s de las actividades propias de cada objetivo, se contemplan actividades transversales que se desarrollan durante todo el periodo, como la redacci\'{o}n del informe y las reuniones peri\'{o}dicas con el docente asesor. La Tabla 7 presenta el cronograma detallado de actividades por mes.
+
+\begin{table}[htbp]
+\caption{Cronograma de actividades del proyecto}
+\label{tab:cronograma}
+\footnotesize
+\begin{tabular}{@{}p{8cm}cccc@{}}
+\toprule
+\textit{Actividad} & \textit{Mes 1} & \textit{Mes 2} & \textit{Mes 3} & \textit{Mes 4} \\
+\midrule
+\multicolumn{5}{l}{\textit{OE1. Especificaci\'{o}n de requisitos cl\'{i}nicos y funcionales}} \\
+Revisi\'{o}n de literatura (mapeo sistem\'{a}tico, GQM y PICOC) & X & X &   &   \\
+Selecci\'{o}n y vertebraci\'{o}n de estudios          &   & X &   &   \\
+Definici\'{o}n de variables y requisitos funcionales  &   & X &   &   \\
+\midrule
+\multicolumn{5}{l}{\textit{OE2. Dise\~{n}o de la arquitectura y del motor de reglas}} \\
+Dise\~{n}o de la arquitectura y el modelo de datos    &   & X & X &   \\
+Operacionalizaci\'{o}n de ventanas y niveles de riesgo &   &   & X &   \\
+Especificaci\'{o}n de reglas y combinaciones cr\'{i}ticas &   &   & X &   \\
+\midrule
+\multicolumn{5}{l}{\textit{OE3. Implementaci\'{o}n del sistema}} \\
+Desarrollo de m\'{o}dulos (reportes, motor, bandeja)  &   &   & X & X \\
+Implementaci\'{o}n de alertas y ciclo de validaci\'{o}n &   &   &   & X \\
+\midrule
+\multicolumn{5}{l}{\textit{OE4. Validaci\'{o}n del sistema}} \\
+Pruebas funcionales del sistema                       &   &   &   & X \\
+Validaci\'{o}n por juicio de expertos veterinarios     &   &   &   & X \\
+An\'{a}lisis de resultados y ajustes finales          &   &   &   & X \\
+\midrule
+\multicolumn{5}{l}{\textit{Actividades transversales}} \\
+Redacci\'{o}n y revisi\'{o}n del informe              & X & X & X & X \\
+Reuniones de seguimiento con el docente asesor        & X & X & X & X \\
+Entrega final del proyecto                            &   &   &   & X \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Como hitos principales se establecen los siguientes entregables. Al cierre del primer mes se completa la planificaci\'{o}n del estudio y el avance de la revisi\'{o}n de literatura. Al cierre del segundo mes se consolidan los requisitos y se entrega la especificaci\'{o}n de variables. Al cierre del tercer mes se presenta el dise\~{n}o de la arquitectura y del motor de reglas, junto con los primeros incrementos funcionales. Finalmente, al cierre del cuarto mes se entrega el sistema implementado y el informe final con los resultados de la validaci\'{o}n.
+
+% =====================================================================
+% 10. REFERENCIAS
+% =====================================================================
+\newpage
+
+\section*{Referencias}
+
+\begin{hangparas}{1.27cm}{1}
+
+Abu-Seida, A. M., Abdulkarim, A., \& Hassan, M. H. (2024). Veterinary telemedicine: A new era for animal welfare. \textit{Open Veterinary Journal, 14}(4), 952--961.
+
+Basili, V. R. (1992). \textit{Software modeling and measurement: the Goal/Question/Metric paradigm}. University of Maryland.
+
+Batko, K., \& \'{S}l\k{e}zak, A. (2022). The use of Big Data Analytics in healthcare. \textit{Journal of Big Data, 9}(3).
+
+Beyer, K., Chomiak-Orsa, I., Pietrzykowski, Z., \& Rozkrut, D. (2025). Digital transformation and business process improvement in veterinary clinics [Ponencia]. \textit{28th European Conference on Artificial Intelligence (ECAI 2025)}, 202--213.
+
+Buitrago Orjuela, L. A., Pardo Santamar\'{i}a, D. F., C\'{e}spedes Quintero, R., Peralta Aguilar, O. F., Munevar Romero, M. D., \& Rodriguez Monta\~{n}a, V. (2024). Infecci\'{o}n del sitio quir\'{u}rgico y aplicaci\'{o}n de medidas de prevenci\'{o}n en una cl\'{i}nica veterinaria en Tunja. \textit{Ciencia y Agricultura, 21}(1), 18003.
+
+Caney, S., Robinson, N., Gunn-Moore, D., \& Dean, R. (2022). Veterinary surgeons', veterinary nurses' and owners' experiences of feline telemedicine consultations during the 2020 COVID-19 pandemic. \textit{Veterinary Record, 191}(5), e1738.
+
+Chipugsi Alb\'{a}n, C. N., Jim\'{e}nez Gonz\'{a}lez, M. X., Arcos \'{A}lvarez, C. N., \& Tip\'{a}n Rojas, J. A. (2026). Relaci\'{o}n entre el manejo del quir\'{o}fano veterinario, contaminaci\'{o}n y uso del material de sutura: prevenci\'{o}n de ISQ. \textit{RECIAMUC, 10}(Especial 1), 42--51.
+
+Congreso de la Rep\'{u}blica de Colombia. (2000). \textit{Ley 576 de 2000. Por la cual se expide el C\'{o}digo de \'{E}tica para el ejercicio profesional de la medicina veterinaria, la medicina veterinaria y zootecnia y zootecnia}. Diario Oficial No. 43.897.
+
+Congreso de la Rep\'{u}blica de Colombia. (2012). \textit{Ley 1581 de 2012. Por la cual se dictan disposiciones generales para la protecci\'{o}n de datos personales}. Diario Oficial No. 48.587.
+
+Engdahl, K. S., Boge, G. S., Bergstr\"{o}m, A. F., Moldal, E. R., \& H\"{o}glund, O. V. (2021). Risk factors for severe postoperative complications in dogs with cranial cruciate ligament disease -- A survival analysis. \textit{Preventive Veterinary Medicine, 191}, 105350.
+
+Fuertes Recuero, M. (2024). \textit{Surgical site infection, associated risk factors and assessment of postoperative pain after laparoscopic ovariectomy in the female dog} [Tesis Doctoral, Universidad Complutense de Madrid].
+
+Heino, O. J. J. (2023). \textit{The clinical decision-making process and the potential impact of the GekkoVet clinical decision support system on diagnostics in veterinary medicine} [Final Thesis, Estonian University of Life Sciences].
+
+Jeyanthi, P., Gulothungan, G., Vinoth Kumar, V., Chopra, H., \& Bin Emran, T. (2024). Enhancing postoperative care with telemedicine and remote monitoring for improved recovery and patient safety. \textit{International Journal of Surgery, 110}(12), 8205--8206.
+
+Jin, Y.-G., Wu, G., Seo, J.-W., Park, S.-J., Hur, S.-H., Aliyeva, D., Park, J.-H., \& Kim, K.-M. (2025). AI veterinary assistance: Enhancing clinical decision-making in animal healthcare. \textit{IEEE Access, 13}, 119292--119304.
+
+Kitchenham, B., Brereton, O. P., Budgen, D., Turner, M., Bailey, J., \& Linkman, S. (2009). Systematic literature reviews in software engineering -- a systematic literature review. \textit{Information and Software Technology, 51}(1), 7--15.
+
+Kurniawan, M. A., Khairullah, A. R., Sukmanadi, M., Indasari, E. N., Pratama, B. P., Mustofa, I., \& Ansori, A. N. M. (2026). Veterinary telemedicine: Current trends, benefits, and challenges in clinical practice. \textit{Journal of Advanced Veterinary Research, 16}(2), 273--282.
+
+Lema Heredia, E. J. (2025). \textit{Identificaci\'{o}n de bacterias en suturas internas (heridas) en pacientes caninos y felinos intervenidos en la Cl\'{i}nica Veterinaria UTC} [Proyecto de Investigaci\'{o}n, Universidad T\'{e}cnica de Cotopaxi].
+
+McLean, K. A., Sgr\`{o}, A., Brown, L. R., Buijs, L. F., Daines, L., Potter, M. A., Bouamrane, M.-M., \& Harrison, E. M. (2023). Evaluation of remote digital postoperative wound monitoring in routine surgical practice. \textit{npj Digital Medicine, 6}(85).
+
+McLean, K. A., Sgr\`{o}, A., Brown, L. R., Buijs, L. F., Mozolowski, K., Daines, L., \& Harrison, E. M. (2024). Implementation of digital remote postoperative monitoring in routine practice: a qualitative study of barriers and facilitators. \textit{BMC Medical Informatics and Decision Making, 24}(307).
+
+Mitek, A., Jones, D., Newell, A., \& Vitale, S. (2022). Wearable devices in veterinary health care. \textit{Veterinary Clinics of North America: Small Animal Practice, 52}, 1087--1098.
+
+Petersen, K., Feldt, R., Mujtaba, S., \& Mattsson, M. (2008). Systematic mapping studies in software engineering. \textit{Proceedings of the 12th International Conference on Evaluation and Assessment in Software Engineering (EASE 2008)}, 1--10.
+
+Petersen, K., Vakkalanka, S., \& Kuzniarz, L. (2015). Guidelines for conducting systematic mapping studies in software engineering: An update. \textit{Information and Software Technology, 64}, 1--18.
+
+Petticrew, M., \& Roberts, H. (2008). \textit{Systematic reviews in the social sciences: A practical guide}. John Wiley \& Sons.
+
+Rubio Tapia, D. M., Aguilar Caivinagua, A. S., Castillo Hidalgo, E. P., \& Maldonado Cornejo, M. E. (2025). Monitoreo de la temperatura corporal antes, durante y despu\'{e}s de la anestesia en Ovariohisterectom\'{i}a canina. \textit{Revista Cient\'{i}fica Internacional Arandu UTIC, 13}(1), 324--344.
+
+Spadari, A., Gialletti, R., Gandini, M., Valle, E., Cerullo, A., Cavallini, D., Bertoletti, A., Rinnovati, R., Forni, G., Scilimati, N., \& Giusto, G. (2023). Short-term survival and postoperative complications rates in horses undergoing colic surgery: A multicentre study. \textit{Animals, 13}(6), 1107.
+
+Sp\r{a}re, P., Ljungvall, I., Ljungvall, K., \& Bergstr\"{o}m, A. (2021). Evaluation of post-operative complications after mastectomy performed without perioperative antimicrobial prophylaxis in dogs. \textit{Acta Veterinaria Scandinavica, 63}(1), 35.
+
+Stetter, J., Boge, G. S., Gr\"{o}nlund, U., \& Bergstr\"{o}m, A. (2021). Risk factors for surgical site infection associated with clean surgical procedures in dogs. \textit{Research in Veterinary Science, 136}, 616--621.
+
+Subrahmanya, S. V. G., Shetty, D. K., Patil, V., Hameed, B. M. Z., Paul, R., Smriti, K., Naik, N., \& Somani, B. K. (2022). The role of data science in healthcare advancements: applications, benefits, and future prospects. \textit{Irish Journal of Medical Science, 191}, 1473--1483.
+
+Turkki, O. M., Westberg Sunesson, K., den Hertog, E., \& Varjonen, K. (2023). Postoperative complications and antibiotic use in dogs with pyometra: a retrospective review of 140 cases (2019). \textit{Acta Veterinaria Scandinavica, 65}(1), 11.
+
+Wohlin, C. (2014). Guidelines for snowballing in systematic literature studies and a replication in software engineering. \textit{Proceedings of the 18th International Conference on Evaluation and Assessment in Software Engineering (EASE 2014)}, 1--10.
+
+Yasin, A., Ahmad, J., \& Kashif, M. (s.f.). \textit{Innovative solutions for rescued animal care: Wearable technology and telemedicine in focus}. University of Veterinary and Animal Sciences, sub campus Jhang. https://www.uvas.edu.pk
+
+Yusuf, H., Hillman, A., Stegeman, J. A., Cameron, A., \& Badger, S. (2024). Expanding access to veterinary clinical decision support in resource-limited settings: a scoping review of clinical decision support tools in medicine and antimicrobial stewardship. \textit{Frontiers in Veterinary Science, 11}, 1349188.
+
+\end{hangparas}
+
+\end{document}

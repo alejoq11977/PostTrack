@@ -1,10 +1,11 @@
 from django import forms
-from django.contrib import admin
+from django.contrib import admin, messages
 from unfold.admin import ModelAdmin
 from firebase_admin import auth
 from .models import User
 import logging
 from apps.users.models.privacy_policy import PrivacyPolicyVersion
+from apps.core.services.email import send_activation_email
 
 logger = logging.getLogger(__name__)
 
@@ -13,27 +14,55 @@ class UserAdminForm(forms.ModelForm):
         label='Contraseña',
         widget=forms.PasswordInput(),
         required=False,
-        help_text="Requerida solo al crear un usuario nuevo. Después de guardada, no se podrá ver por seguridad."
+        help_text=(
+            "Opcional. Si la dejas vacía al crear un usuario nuevo, se le enviará "
+            "un correo para que active su cuenta y elija su propia contraseña "
+            "(recomendado para veterinarios)."
+        ),
     )
 
     class Meta:
         model = User
         exclude = ('password', 'last_login', 'groups', 'user_permissions', 'is_superuser')
 
-    def clean(self):
-        cleaned_data = super().clean()
-        if not self.instance.pk and not cleaned_data.get('new_password'):
-            self.add_error('new_password', 'La contraseña es obligatoria al crear un nuevo usuario.')
-        return cleaned_data
-
 @admin.register(User)
 class UserAdmin(ModelAdmin):
-    form = UserAdminForm 
-    
+    form = UserAdminForm
+
     list_display = ('email', 'full_name', 'role', 'is_active', 'terms_accepted_at')
     list_filter = ('role', 'is_active')
     search_fields = ('email', 'full_name', 'identification_number', 'phone_number')
     ordering = ('-created_at',)
+    actions = ['resend_activation_email_action']
+
+    @admin.action(description="Reenviar correo de activación")
+    def resend_activation_email_action(self, request, queryset):
+        """Reenvía el correo de activación a los usuarios seleccionados (útil si
+        el link expiró o el destinatario lo perdió)."""
+        sent = 0
+        failed = 0
+        for user in queryset:
+            if not user.email:
+                failed += 1
+                continue
+            try:
+                if send_activation_email(user):
+                    sent += 1
+                else:
+                    failed += 1
+            except Exception as exc:
+                logger.error(f"Error reenviando activación a {user.email}: {exc}")
+                failed += 1
+        if sent:
+            messages.success(
+                request,
+                f"Correo de activación reenviado a {sent} usuario(s)."
+            )
+        if failed:
+            messages.warning(
+                request,
+                f"No se pudo enviar a {failed} usuario(s). Revisa la config de Brevo o los logs."
+            )
     
     readonly_fields = (
         'firebase_uid', 
@@ -59,6 +88,7 @@ class UserAdmin(ModelAdmin):
 
     def save_model(self, request, obj, form, change):
         raw_password = form.cleaned_data.get('new_password')
+        send_activation = False  # se decide abajo si toca enviar correo
 
         if raw_password:
             obj.set_password(raw_password)
@@ -72,21 +102,21 @@ class UserAdmin(ModelAdmin):
                     )
                     obj.firebase_uid = firebase_user.uid
                     logger.info(f"Usuario {obj.email} creado en Firebase desde el Admin.")
-                
+
                 except auth.EmailAlreadyExistsError:
                     logger.warning(f"El correo {obj.email} ya existe en Firebase. Intentando recuperar...")
                     firebase_user = auth.get_user_by_email(obj.email)
                     obj.firebase_uid = firebase_user.uid
                     try:
                         auth.update_user(
-                            firebase_user.uid, 
+                            firebase_user.uid,
                             password=raw_password,
                             disabled=False
                         )
                         logger.info(f"Cuenta zombie {obj.email} recuperada, habilitada y clave actualizada.")
                     except Exception as inner_e:
                         logger.error(f"Error recuperando cuenta zombie en Firebase: {inner_e}")
-                        
+
                 except Exception as e:
                     logger.error(f"Error creando en Firebase: {e}")
             else:
@@ -97,6 +127,31 @@ class UserAdmin(ModelAdmin):
                     except Exception as e:
                         logger.error(f"Error actualizando clave en Firebase: {e}")
 
+        elif not change:
+            # Usuario nuevo SIN contraseña: lo creamos en Firebase sin password
+            # y le mandamos el correo de activación para que ponga la suya.
+            obj.set_unusable_password()
+            try:
+                firebase_user = auth.create_user(
+                    email=obj.email,
+                    display_name=obj.full_name or None,
+                )
+                obj.firebase_uid = firebase_user.uid
+                send_activation = True
+                logger.info(f"Usuario {obj.email} creado en Firebase (sin contraseña) desde el Admin.")
+            except auth.EmailAlreadyExistsError:
+                logger.warning(f"El correo {obj.email} ya existe en Firebase. Reutilizando para activación.")
+                firebase_user = auth.get_user_by_email(obj.email)
+                obj.firebase_uid = firebase_user.uid
+                try:
+                    auth.update_user(firebase_user.uid, disabled=False)
+                except Exception:
+                    pass
+                send_activation = True
+            except Exception as e:
+                logger.error(f"Error creando en Firebase: {e}")
+                messages.error(request, f"No se pudo crear el usuario en Firebase: {e}")
+
         if change and obj.firebase_uid:
             try:
                 auth.update_user(obj.firebase_uid, disabled=not obj.is_active)
@@ -104,6 +159,21 @@ class UserAdmin(ModelAdmin):
                 logger.error(f"Error sincronizando is_active en Firebase: {e}")
 
         super().save_model(request, obj, form, change)
+
+        # Después de guardar (ya con obj.pk), enviamos el correo de activación.
+        if send_activation:
+            ok = send_activation_email(obj)
+            if ok:
+                messages.success(
+                    request,
+                    f"Se envió el correo de activación a {obj.email}."
+                )
+            else:
+                messages.warning(
+                    request,
+                    f"El usuario quedó creado, pero el correo de activación no se pudo enviar "
+                    f"(revisa la config de Brevo o los logs). Email: {obj.email}."
+                )
 
     def delete_model(self, request, obj):
         if obj.firebase_uid:

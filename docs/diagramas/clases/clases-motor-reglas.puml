@@ -1,0 +1,100 @@
+@startuml clases-motor-reglas
+title PostTrack — Clases focalizadas: Motor de reglas de riesgo
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam classBorderColor #6C3483
+skinparam classBackgroundColor #F5EEF8
+skinparam classArrowColor #6C3483
+skinparam defaultFontName "Helvetica"
+skinparam classAttributeIconSize 0
+hide circle
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+class GeneralQuestion {
+  +text : String
+  +factor : String
+  +associated_risk : RiskLevel
+  --
+  Pregunta fija del cuestionario.
+  associated_risk es el respaldo
+  si no hay riesgo por ventana.
+}
+
+class RiskWindow {
+  +label : String
+  +start_hour : Integer
+  +order : Integer
+  --
+  Ventana activa = mayor start_hour
+  <= horas desde la cirugía
+}
+
+class FactorWindowRisk {
+  +risk_level : RiskLevel
+  --
+  unique(question, window)
+}
+
+class RiskRule {
+  +name : String
+  +question_ids : JSON
+  +result_level : RiskLevel
+  --
+  Combinación: si TODAS las
+  preguntas están en SÍ → result_level
+}
+
+class RiskThreshold {
+  +level : RiskLevel
+  +min_count : Integer
+  +escalates_to : RiskLevel
+  --
+  Acumulación: si #factores(level)
+  >= min_count → escalates_to
+}
+
+class "evaluate_risk()" as Svc <<service>> {
+  +answers : List<AnswerInput>
+  +hours_since_surgery : Float
+  --
+  1. resuelve la ventana activa
+  2. mapea riesgo por factor
+     (FactorWindowRisk, respaldo associated_risk)
+  3. cuenta factores por nivel
+  4. candidatos = factor más alto
+     + reglas + umbrales que se cumplan
+  5. resultado = MÁXIMO de candidatos
+  --
+  returns RiskEvaluationResult
+}
+
+class RiskEvaluationResult <<dataclass>> {
+  +level : RiskLevel
+  +counts : Map<RiskLevel,int>
+  +applied_rules : List<String>
+  +window : String
+}
+
+GeneralQuestion "1" --> "0..*" FactorWindowRisk
+RiskWindow "1" --> "0..*" FactorWindowRisk
+
+Svc ..> FactorWindowRisk : consulta
+Svc ..> GeneralQuestion : respaldo
+Svc ..> RiskRule : aplica
+Svc ..> RiskThreshold : aplica
+Svc ..> RiskWindow : resuelve
+Svc --> RiskEvaluationResult : produce
+
+note bottom of Svc
+  El nivel final es el MÁXIMO entre el factor
+  individual más alto, las combinaciones y los
+  umbrales. El orden no altera el resultado.
+end note
+
+@enduml

@@ -1,0 +1,124 @@
+@startuml casos-de-uso-general
+title PostTrack — Diagrama de Casos de Uso (General)
+
+left to right direction
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+skinparam usecaseBackgroundColor #ECF0F1
+skinparam usecaseBorderColor #2C3E50
+skinparam defaultFontName "Helvetica"
+
+actor "Propietario" as Owner
+actor "Veterinario" as Vet
+actor "Administrador" as Admin
+actor "Sistema\n(Celery / motor de reglas)" as Sys <<system>>
+actor "Firebase Auth" as FB <<external>>
+
+Admin --|> Vet
+
+rectangle "PostTrack" {
+
+  ' --- Autenticación y datos personales ---
+  package "Acceso y consentimiento" {
+    usecase "Iniciar sesión" as UC_login
+    usecase "Seleccionar clínica activa" as UC_selclinic
+    usecase "Aceptar política y autorización de datos" as UC_terms
+    usecase "Actualizar perfil" as UC_profile
+    usecase "Desactivar cuenta" as UC_deactivate
+  }
+
+  ' --- Propietario ---
+  package "Monitoreo en el hogar" {
+    usecase "Ver mis mascotas" as UC_pets
+    usecase "Ver detalle de mascota y monitoreos" as UC_petdetail
+    usecase "Enviar reporte postoperatorio" as UC_report
+    usecase "Adjuntar evidencia fotográfica" as UC_photos
+    usecase "Ver historial de reportes" as UC_history
+  }
+
+  ' --- Veterinario ---
+  package "Gestión clínica y revisión" {
+    usecase "Ver tablero (estadísticas)" as UC_dash
+    usecase "Ver bandeja de reportes" as UC_inbox
+    usecase "Ver detalle de reporte" as UC_repdetail
+    usecase "Validar / corregir nivel de riesgo" as UC_validate
+    usecase "Marcar reporte como revisado" as UC_markrev
+    usecase "Ver alertas en tiempo real" as UC_alerts
+    usecase "Ver reportes faltantes (vencidos)" as UC_missing
+    usecase "Gestionar propietarios" as UC_owners
+    usecase "Gestionar pacientes" as UC_patients
+    usecase "Crear monitoreo quirúrgico" as UC_createmon
+    usecase "Registrar salida a casa" as UC_release
+    usecase "Dar de alta el monitoreo" as UC_discharge
+  }
+
+  ' --- Admin ---
+  package "Administración multiclínica" {
+    usecase "Vincular / desvincular veterinario a clínica" as UC_link
+  }
+
+  ' --- Sistema ---
+  package "Procesos automáticos" {
+    usecase "Calcular riesgo automáticamente" as UC_calcrisk
+    usecase "Procesar imágenes (ImgBB)" as UC_imgbb
+    usecase "Enviar recordatorios de reportes vencidos" as UC_remind
+    usecase "Enviar correo de activación" as UC_activation
+    usecase "Registrar auditoría de acceso a datos" as UC_audit
+  }
+}
+
+' Propietario
+Owner --> UC_login
+Owner --> UC_terms
+Owner --> UC_pets
+Owner --> UC_petdetail
+Owner --> UC_report
+Owner --> UC_history
+Owner --> UC_profile
+Owner --> UC_deactivate
+
+' Veterinario
+Vet --> UC_login
+Vet --> UC_selclinic
+Vet --> UC_dash
+Vet --> UC_inbox
+Vet --> UC_repdetail
+Vet --> UC_alerts
+Vet --> UC_missing
+Vet --> UC_owners
+Vet --> UC_patients
+Vet --> UC_createmon
+Vet --> UC_release
+Vet --> UC_discharge
+Vet --> UC_profile
+
+' Admin
+Admin --> UC_link
+
+' Sistema
+UC_calcrisk <-- Sys
+UC_imgbb <-- Sys
+UC_remind <-- Sys
+UC_activation <-- Sys
+UC_audit <-- Sys
+
+' Relaciones include / extend
+UC_login ..> FB : <<include>>
+UC_report ..> UC_calcrisk : <<include>>
+UC_report ..> UC_audit : <<include>>
+UC_photos .> UC_report : <<extend>>
+UC_report <.. UC_imgbb : <<extend>>\n(si hay fotos)
+UC_repdetail <.. UC_validate : <<extend>>
+UC_repdetail <.. UC_markrev : <<extend>>
+UC_owners ..> UC_activation : <<include>>
+UC_createmon ..> UC_audit : <<include>>
+
+note bottom of UC_calcrisk
+  El riesgo se recalcula también al enviar
+  (vista evaluate-risk) y queda en
+  Report.calculated_risk
+end note
+
+@enduml

@@ -56,4 +56,11 @@ def save_report_with_answers(monitoring, medical_notes, status, general_answers:
     if answers_to_create:
         Answer.objects.bulk_create(answers_to_create)
 
+    # Resetea el ciclo de recordatorios por vencimiento: el siguiente vencimiento
+    # arranca limpio, sin contar correos de ciclos anteriores.
+    if monitoring.last_overdue_email_at is not None or monitoring.overdue_emails_sent:
+        monitoring.last_overdue_email_at = None
+        monitoring.overdue_emails_sent = 0
+        monitoring.save(update_fields=['last_overdue_email_at', 'overdue_emails_sent'])
+
     return report

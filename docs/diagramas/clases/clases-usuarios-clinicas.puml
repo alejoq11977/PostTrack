@@ -1,0 +1,106 @@
+@startuml clases-usuarios-clinicas
+title PostTrack — Clases focalizadas: Usuarios, clínicas y protección de datos
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam classBorderColor #1A5276
+skinparam classBackgroundColor #EBF5FB
+skinparam classArrowColor #1A5276
+skinparam defaultFontName "Helvetica"
+skinparam classAttributeIconSize 0
+hide circle
+
+enum UserRole {
+  ADMIN
+  VETERINARIAN
+  OWNER
+}
+
+class User {
+  +firebase_uid : String <<unique>>
+  +full_name : String
+  +email : String <<unique>>
+  +role : UserRole = OWNER
+  +password_changed : Boolean
+  +terms_accepted_at : DateTime
+}
+
+class PrivacyPolicyVersion {
+  +version : String <<unique>>
+  +content : Text
+  +effective_date : Date
+  +is_active : Boolean
+}
+
+class Clinic {
+  +name : String
+  +nit : String <<unique>>
+  +address : String
+  +email : String
+  +phone : String
+}
+
+class ClinicMembership {
+  +role : UserRole
+  +full_name : String
+  +identification_number : String
+  +is_active : Boolean
+  +linked_at : DateTime
+  +unlinked_at : DateTime
+  --
+  Perfil del usuario POR clínica
+  (aislamiento Ley 1581).
+  unique(user, clinic)
+}
+
+class DataPolicy {
+  +version : String
+  +content : Text
+  +effective_date : Date
+  +is_active : Boolean
+}
+
+class DataAuthorization {
+  +version : String
+  +content : Text
+  +effective_date : Date
+  +is_active : Boolean
+}
+
+class DataTreatmentAcceptance {
+  +accepted_at : DateTime
+  +ip_address : IP
+  +policy_version : String
+  +authorization_version : String
+  --
+  unique(user, clinic)
+}
+
+class ClinicAuditLog {
+  +action : String
+  +details : JSON
+  +ip_address : IP
+  +timestamp : DateTime
+}
+
+User "0..*" --> "0..1" PrivacyPolicyVersion : terms_accepted_version
+User "0..1" --> "0..*" User : managed_by
+
+User "1" --> "0..*" ClinicMembership
+Clinic "1" --> "0..*" ClinicMembership
+
+Clinic "1" --> "0..*" DataPolicy
+Clinic "1" --> "0..*" DataAuthorization
+
+User "1" --> "0..*" DataTreatmentAcceptance
+Clinic "1" --> "0..*" DataTreatmentAcceptance
+
+User "1" --> "0..*" ClinicAuditLog
+Clinic "1" --> "0..*" ClinicAuditLog
+
+note bottom of ClinicMembership
+  Un mismo usuario puede pertenecer a varias
+  clínicas con un perfil independiente en cada una.
+end note
+
+@enduml

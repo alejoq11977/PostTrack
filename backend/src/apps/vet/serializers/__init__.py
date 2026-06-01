@@ -78,19 +78,71 @@ class VetReportDetailSerializer(serializers.ModelSerializer):
         return []
 
     def get_answers(self, obj):
+        """
+        Respuestas enriquecidas con el riesgo clínico real de cada factor en la
+        ventana temporal del reporte (no por Sí/No, que sería incorrecto). Permite
+        al frontend resaltar las señales de alerta y ordenarlas por gravedad.
+        """
+        from apps.patients.services.risk_evaluation import _resolve_window
+        from apps.patients.models import FactorWindowRisk
+
+        # Ventana del reporte, medida desde la cirugía.
+        window = None
+        if obj.monitoring and obj.monitoring.surgery_date:
+            hours = (obj.submitted_at - obj.monitoring.surgery_date).total_seconds() / 3600
+            window = _resolve_window(hours)
+
+        risk_by_question = {}
+        if window:
+            for fwr in FactorWindowRisk.objects.filter(window=window):
+                risk_by_question[fwr.question_id] = fwr.risk_level
+
+        severity = {'HIGH': 3, 'MEDIUM': 2, 'LOW': 1, None: 0}
+
         answers = obj.answers.select_related('general_question', 'custom_question').all()
         result = []
         for a in answers:
-            question_text = None
             if a.general_question:
+                qtype = 'general'
                 question_text = a.general_question.text
+                instruction = a.general_question.instruction_text
+                # "Presente" = el dueño respondió que sí ocurre el signo.
+                present = str(a.value).strip().lower() in ('yes', 'true', 'sí', 'si', '1')
+                if present:
+                    risk_level = risk_by_question.get(
+                        a.general_question_id,
+                        a.general_question.associated_risk or None,
+                    )
+                else:
+                    risk_level = None
             elif a.custom_question:
+                qtype = 'custom'
                 question_text = a.custom_question.text
+                instruction = a.custom_question.instruction_text
+                present = None
+                risk_level = None
+            else:
+                qtype = 'general'
+                question_text = 'Pregunta desconocida'
+                instruction = None
+                present = None
+                risk_level = None
+
             result.append({
                 'id': a.id,
+                'type': qtype,
                 'question_text': question_text or 'Pregunta desconocida',
-                'value': a.value
+                'instruction_text': instruction,
+                'value': a.value,
+                'present': present,
+                'risk_level': risk_level,
             })
+
+        # Generales primero (las señales clínicas) ordenadas por gravedad; custom al final.
+        result.sort(key=lambda r: (
+            0 if r['type'] == 'general' else 1,
+            -severity.get(r['risk_level'], 0),
+        ))
         return result
 
     def get_general_notes(self, obj):

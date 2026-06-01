@@ -1,0 +1,70 @@
+@startuml despliegue
+title PostTrack — Diagrama de Despliegue (entorno de desarrollo, Docker Compose)
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Helvetica"
+skinparam nodeBackgroundColor #EAEDED
+skinparam nodeBorderColor #34495E
+skinparam databaseBackgroundColor #FEF9E7
+skinparam databaseBorderColor #B7950B
+
+node "Equipo del desarrollador / Host" as host {
+
+  node "Docker Engine" as docker {
+
+    node "posttrack_frontend\n<node:22-alpine>" as nfront {
+      artifact "Vite dev server\n(React 19)\n:5173" as front
+    }
+
+    node "posttrack_backend\n<python:3.12-slim>" as nback {
+      artifact "Django + DRF\n(runserver :8000)" as back
+    }
+
+    node "posttrack_celery\n<python:3.12-slim>" as ncelery {
+      artifact "celery -A config worker -B\n(worker + beat)" as celery
+    }
+
+    node "posttrack_db" as ndb {
+      database "PostgreSQL 15-alpine\n:5432" as db
+    }
+
+    node "posttrack_redis" as nredis {
+      queue "Redis 7-alpine\n:6379" as redis
+    }
+
+    folder "Volúmenes" as vols {
+      artifact "postgres_data" as vdb
+      artifact "media_data" as vmedia
+    }
+  }
+}
+
+cloud "Firebase Auth\n(posttrack-f3642)" as fb
+cloud "Brevo SMTP\n(smtp-relay.brevo.com:587)" as brevo
+cloud "ImgBB API" as imgbb
+actor "Navegador\n(Propietario / Veterinario)" as browser
+
+browser --> front : HTTPS :5173
+front --> back : proxy /api → :8000\n(HTTP + SSE)
+back --> db : TCP 5432
+back --> redis : encola tareas
+celery --> redis : consume tareas
+celery --> db : TCP 5432
+
+back ..> fb : verificación de token
+front ..> fb : login (SDK web)
+celery ..> brevo : SMTP (correos)
+back ..> imgbb : carga directa
+celery ..> imgbb : carga asíncrona
+
+db ..> vdb : persiste
+back ..> vmedia : media
+celery ..> vmedia : archivos temporales
+
+note bottom of ncelery
+  Un solo contenedor ejecuta worker + beat (-B).
+  Beat dispara send_overdue_reminders cada 30 min.
+end note
+
+@enduml

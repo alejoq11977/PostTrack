@@ -4,6 +4,10 @@ export interface VetAnswer {
   id: number;
   question_text: string;
   value: string;
+  type?: 'general' | 'custom';
+  instruction_text?: string | null;
+  present?: boolean | null;
+  risk_level?: 'LOW' | 'MEDIUM' | 'HIGH' | null;
 }
 
 export interface VetQuestion {

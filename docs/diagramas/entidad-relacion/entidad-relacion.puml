@@ -1,0 +1,234 @@
+@startuml entidad-relacion
+title PostTrack — Modelo Entidad-Relación (esquema de base de datos)
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam linetype ortho
+skinparam defaultFontName "Helvetica"
+skinparam entityBackgroundColor #FEF9E7
+skinparam entityBorderColor #B7950B
+
+' PK = clave primaria, FK = clave foránea, U = único, N = nullable
+entity "users_user" as user {
+  * id : bigint <<PK>>
+  --
+  firebase_uid : varchar(128) <<U,N>>
+  email : varchar <<U>>
+  full_name : varchar(255)
+  identification_type : varchar(3) <<N>>
+  identification_number : varchar(50) <<N>>
+  phone_number : varchar(50) <<N>>
+  address : varchar(255) <<N>>
+  role : varchar(20)
+  password_changed : bool
+  terms_accepted_at : timestamp <<N>>
+  terms_accepted_version_id : bigint <<FK,N>>
+  managed_by_id : bigint <<FK,N>>
+  is_active : bool
+}
+
+entity "users_privacypolicyversion" as ppv {
+  * id : bigint <<PK>>
+  --
+  version : varchar(20) <<U>>
+  content : text
+  effective_date : date
+  is_active : bool
+}
+
+entity "clinics_clinic" as clinic {
+  * id : bigint <<PK>>
+  --
+  name : varchar(200)
+  nit : varchar(20) <<U>>
+  address : varchar(300)
+  email : varchar
+  phone : varchar(20)
+}
+
+entity "clinics_clinicmembership" as membership {
+  * id : bigint <<PK>>
+  --
+  user_id : bigint <<FK>>
+  clinic_id : bigint <<FK>>
+  role : varchar(20)
+  identification_number : varchar(50) <<N>>
+  is_active : bool
+  linked_at : timestamp
+  unlinked_at : timestamp <<N>>
+}
+
+entity "clinics_datapolicy" as policy {
+  * id : bigint <<PK>>
+  --
+  clinic_id : bigint <<FK>>
+  version : varchar(20)
+  content : text
+  effective_date : date
+  is_active : bool
+}
+
+entity "clinics_dataauthorization" as auth {
+  * id : bigint <<PK>>
+  --
+  clinic_id : bigint <<FK>>
+  version : varchar(20)
+  content : text
+  effective_date : date
+  is_active : bool
+}
+
+entity "clinics_datatreatmentacceptance" as acceptance {
+  * id : bigint <<PK>>
+  --
+  user_id : bigint <<FK>>
+  clinic_id : bigint <<FK>>
+  accepted_at : timestamp
+  ip_address : inet
+  policy_version : varchar(20)
+  authorization_version : varchar(20)
+}
+
+entity "clinics_clinicauditlog" as audit {
+  * id : bigint <<PK>>
+  --
+  clinic_id : bigint <<FK>>
+  user_id : bigint <<FK>>
+  action : varchar(50)
+  details : jsonb
+  ip_address : inet <<N>>
+  timestamp : timestamp
+}
+
+entity "patients_patient" as patient {
+  * id : bigint <<PK>>
+  --
+  owner_id : bigint <<FK>>
+  clinic_id : bigint <<FK,N>>
+  name : varchar(100)
+  species : varchar(50)
+  breed : varchar(100)
+  birth_date : date
+  current_weight : float
+  photo_url : varchar(500) <<N>>
+}
+
+entity "patients_riskwindow" as window {
+  * id : bigint <<PK>>
+  --
+  label : varchar(100)
+  start_hour : int
+  order : int
+}
+
+entity "patients_riskrule" as rule {
+  * id : bigint <<PK>>
+  --
+  name : varchar(255)
+  question_ids : jsonb
+  result_level : varchar(10)
+}
+
+entity "patients_riskthreshold" as threshold {
+  * id : bigint <<PK>>
+  --
+  level : varchar(10)
+  min_count : int
+  escalates_to : varchar(10)
+}
+
+entity "patients_factorwindowrisk" as fwr {
+  * id : bigint <<PK>>
+  --
+  question_id : bigint <<FK>>
+  window_id : bigint <<FK>>
+  risk_level : varchar(10)
+}
+
+entity "monitoring_generalquestion" as gquestion {
+  * id : bigint <<PK>>
+  --
+  text : varchar(500)
+  factor : varchar(100)
+  associated_risk : varchar(10)
+  instruction_text : text <<N>>
+}
+
+entity "monitoring_surgicalmonitoring" as monitoring {
+  * id : bigint <<PK>>
+  --
+  patient_id : bigint <<FK>>
+  surgery_type : varchar(255)
+  surgery_date : timestamp
+  home_release_date : timestamp <<N>>
+  discharged_at : timestamp <<N>>
+  report_frequency_hours : int
+  status : varchar(20)
+  last_overdue_email_at : timestamp <<N>>
+  overdue_emails_sent : int
+}
+
+entity "monitoring_customquestion" as cquestion {
+  * id : bigint <<PK>>
+  --
+  monitoring_id : bigint <<FK>>
+  text : varchar(500)
+  instruction_text : text <<N>>
+}
+
+entity "monitoring_report" as report {
+  * id : bigint <<PK>>
+  --
+  monitoring_id : bigint <<FK>>
+  submitted_at : timestamp
+  calculated_risk : varchar(10) <<N>>
+  validated_risk : varchar(10) <<N>>
+  review_status : varchar(15)
+  reviewed_at : timestamp <<N>>
+  processing_status : varchar(20)
+  medical_notes : text <<N>>
+}
+
+entity "monitoring_answer" as answer {
+  * id : bigint <<PK>>
+  --
+  report_id : bigint <<FK>>
+  general_question_id : bigint <<FK,N>>
+  custom_question_id : bigint <<FK,N>>
+  value : text
+}
+
+entity "monitoring_visualevidence" as evidence {
+  * id : bigint <<PK>>
+  --
+  report_id : bigint <<FK>>
+  image_url : varchar(500)
+}
+
+' ===================== Relaciones =====================
+user ||--o{ patient
+user ||--o{ membership
+user ||--o{ acceptance
+user ||--o{ audit
+user }o--o| ppv
+user |o--o{ user
+
+clinic ||--o{ membership
+clinic ||--o{ policy
+clinic ||--o{ auth
+clinic ||--o{ acceptance
+clinic ||--o{ audit
+clinic |o--o{ patient
+
+patient ||--o{ monitoring
+monitoring ||--o{ report
+monitoring ||--o{ cquestion
+report ||--o{ answer
+report ||--o{ evidence
+gquestion |o--o{ answer
+cquestion |o--o{ answer
+
+gquestion ||--o{ fwr
+window ||--o{ fwr
+
+@enduml

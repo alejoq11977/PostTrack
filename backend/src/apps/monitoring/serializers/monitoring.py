@@ -17,10 +17,14 @@ class MonitoringFormSerializer(serializers.ModelSerializer):
     """
     custom_questions = CustomQuestionSerializer(many=True, read_only=True)
     days_since_surgery = serializers.SerializerMethodField()
+    patient_name = serializers.CharField(source='patient.name', read_only=True)
+    patient_photo = serializers.URLField(source='patient.photo_url', read_only=True, allow_null=True)
+    patient_species = serializers.CharField(source='patient.species', read_only=True)
 
     class Meta:
         model = SurgicalMonitoring
-        fields = ('id', 'surgery_type', 'surgery_date', 'custom_questions', 'days_since_surgery')
+        fields = ('id', 'surgery_type', 'surgery_date', 'custom_questions', 'days_since_surgery',
+                  'patient_name', 'patient_photo', 'patient_species')
 
     def get_days_since_surgery(self, obj):
         from datetime import datetime

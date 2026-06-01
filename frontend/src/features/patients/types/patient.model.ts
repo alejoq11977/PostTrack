@@ -7,6 +7,9 @@ export interface SurgicalMonitoring {
   home_release_date: string | null;
   report_frequency_hours: number;
   status: MonitoringStatus;
+  last_report_at?: string | null;
+  next_report_at?: string | null;
+  is_overdue?: boolean;
 }
 
 export interface Patient {
@@ -32,6 +35,9 @@ export interface MonitoringForm {
     surgery_type: string;
     surgery_date: string;
     custom_questions: Question[];
+    patient_name?: string;
+    patient_photo?: string | null;
+    patient_species?: string;
   };
   general_questions: Question[];
 }

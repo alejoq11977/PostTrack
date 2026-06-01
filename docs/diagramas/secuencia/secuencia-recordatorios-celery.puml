@@ -1,0 +1,42 @@
+@startuml secuencia-recordatorios-celery
+title PostTrack — Secuencia: Recordatorios de reportes vencidos
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Helvetica"
+skinparam ParticipantBackgroundColor #FDEDEC
+skinparam ParticipantBorderColor #B03A2E
+
+participant "Celery beat" as BEAT
+participant "send_overdue_reminders\n(task)" as TASK
+database "PostgreSQL" as DB
+participant "email service\n(core.services.email)" as EMAIL
+participant "Brevo SMTP" as BREVO
+actor Propietario as O
+
+BEAT -> TASK : cada 30 min
+activate TASK
+TASK -> DB : monitoreos ACTIVE con salida a casa\ny overdue_emails_sent < 3
+DB --> TASK : lista de monitoreos
+
+loop por cada monitoreo
+  TASK -> DB : último reporte (anchor)
+  TASK -> TASK : expected_next = anchor + frecuencia
+  alt vencido y (sin envío previo o > 24 h)
+    TASK -> EMAIL : send_overdue_report_email(owner, monitoring, horas)
+    EMAIL -> BREVO : enviar correo
+    BREVO --> O : recordatorio con enlace al reporte
+    TASK -> DB : last_overdue_email_at = ahora,\noverdue_emails_sent += 1
+  else al día o anti-spam
+    TASK -> TASK : omitir
+  end
+end
+deactivate TASK
+
+note over TASK
+  Si el propietario envía un reporte, el servicio
+  de reportes reinicia los contadores y el ciclo
+  vuelve a empezar.
+end note
+
+@enduml

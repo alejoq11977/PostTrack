@@ -1,0 +1,48 @@
+@startuml actividades-envio-reporte
+title PostTrack — Actividad: Envío de un reporte postoperatorio
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Helvetica"
+
+|Propietario|
+start
+:Abrir la mascota y el monitoreo activo;
+if (¿Monitoreo ACTIVO y salida a casa registrada?) then (no)
+  :Mostrar "En la clínica" / "Dado de alta"\n(no se permite reportar);
+  stop
+else (sí)
+endif
+:Paso 1 — Responder cuestionario fijo\n(21 preguntas Sí/No);
+:Paso 2 — Responder preguntas personalizadas;
+:Paso 3 — Adjuntar fotos (opcional)\ny notas libres;
+:Enviar reporte (FormData);
+
+|Backend (Django)|
+:Validar monitoreo activo del propietario;
+:Guardar imágenes en almacenamiento temporal;
+:Calcular horas desde la cirugía;
+:evaluate_risk(respuestas, horas)\n→ calculated_risk;
+:Crear Report + Answer (cuestionario fijo y personalizado);
+if (¿Hay imágenes?) then (sí)
+  :processing_status = PROCESSING;
+  :Encolar process_report_images_task;
+else (no)
+  :processing_status = COMPLETED;
+endif
+:Reiniciar contadores de recordatorio\n(last_overdue_email_at, overdue_emails_sent);
+:Responder 201 (report_id);
+
+|Sistema (Celery, asíncrono)|
+if (¿tarea de imágenes encolada?) then (sí)
+  :Subir cada imagen a ImgBB;
+  :Crear VisualEvidence;
+  :processing_status = COMPLETED (o FAILED);
+else (no)
+endif
+
+|Propietario|
+:Ver pantalla de resultado\n(nivel de riesgo y ventana);
+stop
+
+@enduml

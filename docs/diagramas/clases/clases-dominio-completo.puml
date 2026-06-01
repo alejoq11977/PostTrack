@@ -1,0 +1,246 @@
+@startuml clases-dominio-completo
+title PostTrack — Diagrama de Clases (Modelo de dominio completo)
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam classBorderColor #2C3E50
+skinparam classBackgroundColor #FBFCFC
+skinparam classArrowColor #5D6D7E
+skinparam defaultFontName "Helvetica"
+skinparam classAttributeIconSize 0
+hide circle
+
+' ===================== Enums =====================
+enum UserRole {
+  ADMIN
+  VETERINARIAN
+  OWNER
+}
+enum IdentificationType {
+  CC
+  CE
+  PA
+  PEP
+}
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+enum MonitoringStatus {
+  ACTIVE
+  DISCHARGED
+}
+enum ReportStatus {
+  PENDING
+  REVIEWED
+}
+enum ProcessingStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+' ===================== Core =====================
+abstract class AuditableModel {
+  +created_at : DateTime
+  +updated_at : DateTime
+  +is_active : Boolean
+}
+
+' ===================== Users =====================
+class User {
+  +firebase_uid : String <<unique>>
+  +full_name : String
+  +email : String <<unique>>
+  +identification_type : IdentificationType
+  +identification_number : String
+  +phone_number : String
+  +address : String
+  +role : UserRole = OWNER
+  +password_changed : Boolean
+  +terms_accepted_at : DateTime
+  +is_staff : Boolean
+}
+
+class PrivacyPolicyVersion {
+  +version : String <<unique>>
+  +content : Text
+  +effective_date : Date
+  +is_active : Boolean
+}
+
+' ===================== Clinics =====================
+class Clinic {
+  +name : String
+  +nit : String <<unique>>
+  +address : String
+  +email : String
+  +phone : String
+}
+
+class ClinicMembership {
+  +role : UserRole
+  +full_name : String
+  +identification_type : IdentificationType
+  +identification_number : String
+  +phone_number : String
+  +address : String
+  +is_active : Boolean
+  +linked_at : DateTime
+  +unlinked_at : DateTime
+  +unlink()
+}
+
+class DataPolicy {
+  +version : String
+  +content : Text
+  +effective_date : Date
+  +is_active : Boolean
+}
+
+class DataAuthorization {
+  +version : String
+  +content : Text
+  +effective_date : Date
+  +is_active : Boolean
+}
+
+class DataTreatmentAcceptance {
+  +accepted_at : DateTime
+  +ip_address : IP
+  +user_agent : Text
+  +policy_version : String
+  +authorization_version : String
+}
+
+class ClinicAuditLog {
+  +action : String
+  +details : JSON
+  +ip_address : IP
+  +user_agent : Text
+  +timestamp : DateTime
+}
+
+' ===================== Patients =====================
+class Patient {
+  +name : String
+  +species : String
+  +breed : String
+  +birth_date : Date
+  +current_weight : Float
+  +photo_url : URL
+}
+
+' ===================== Motor de reglas =====================
+class RiskWindow {
+  +label : String
+  +start_hour : Integer
+  +order : Integer
+}
+class RiskRule {
+  +name : String
+  +question_ids : JSON
+  +result_level : RiskLevel
+}
+class RiskThreshold {
+  +level : RiskLevel
+  +min_count : Integer
+  +escalates_to : RiskLevel
+}
+class FactorWindowRisk {
+  +risk_level : RiskLevel
+}
+
+' ===================== Monitoring =====================
+class SurgicalMonitoring {
+  +surgery_type : String
+  +surgery_date : DateTime
+  +home_release_date : DateTime
+  +discharged_at : DateTime
+  +report_frequency_hours : Integer = 24
+  +status : MonitoringStatus = ACTIVE
+  +last_overdue_email_at : DateTime
+  +overdue_emails_sent : Integer
+}
+
+class GeneralQuestion {
+  +text : String
+  +factor : String
+  +associated_risk : RiskLevel
+  +instruction_text : Text
+}
+
+class CustomQuestion {
+  +text : String
+  +instruction_text : Text
+}
+
+class Report {
+  +submitted_at : DateTime
+  +calculated_risk : RiskLevel
+  +validated_risk : RiskLevel
+  +review_status : ReportStatus = PENDING
+  +reviewed_at : DateTime
+  +processing_status : ProcessingStatus = COMPLETED
+  +medical_notes : Text
+  +history : HistoricalRecords
+}
+
+class Answer {
+  +value : Text
+}
+
+class VisualEvidence {
+  +image_url : URL
+}
+
+' ===================== Herencia =====================
+AuditableModel <|-- Patient
+AuditableModel <|-- Clinic
+AuditableModel <|-- ClinicMembership
+AuditableModel <|-- DataPolicy
+AuditableModel <|-- DataAuthorization
+AuditableModel <|-- DataTreatmentAcceptance
+AuditableModel <|-- ClinicAuditLog
+AuditableModel <|-- RiskWindow
+AuditableModel <|-- RiskRule
+AuditableModel <|-- RiskThreshold
+AuditableModel <|-- FactorWindowRisk
+AuditableModel <|-- SurgicalMonitoring
+AuditableModel <|-- GeneralQuestion
+AuditableModel <|-- CustomQuestion
+AuditableModel <|-- Report
+AuditableModel <|-- Answer
+AuditableModel <|-- VisualEvidence
+AbstractBaseUser <|-- User
+AuditableModel <|-- User
+
+' ===================== Asociaciones =====================
+User "1" --> "0..*" Patient : owner
+User "0..1" --> "0..*" User : managed_by
+User "0..*" --> "0..1" PrivacyPolicyVersion : terms_accepted_version
+
+Clinic "1" --> "0..*" ClinicMembership
+User "1" --> "0..*" ClinicMembership
+Clinic "1" --> "0..*" DataPolicy
+Clinic "1" --> "0..*" DataAuthorization
+Clinic "1" --> "0..*" DataTreatmentAcceptance
+User "1" --> "0..*" DataTreatmentAcceptance
+Clinic "1" --> "0..*" ClinicAuditLog
+User "1" --> "0..*" ClinicAuditLog
+
+Clinic "0..1" --> "0..*" Patient
+Patient "1" --> "0..*" SurgicalMonitoring
+
+SurgicalMonitoring "1" --> "0..*" Report
+SurgicalMonitoring "1" --> "0..*" CustomQuestion
+Report "1" --> "0..*" Answer
+Report "1" --> "0..*" VisualEvidence
+Answer "0..*" --> "0..1" GeneralQuestion
+Answer "0..*" --> "0..1" CustomQuestion
+
+GeneralQuestion "1" --> "0..*" FactorWindowRisk
+RiskWindow "1" --> "0..*" FactorWindowRisk
+
+@enduml

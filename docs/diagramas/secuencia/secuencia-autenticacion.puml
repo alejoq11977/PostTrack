@@ -1,0 +1,55 @@
+@startuml secuencia-autenticacion
+title PostTrack — Secuencia: Autenticación y selección de clínica
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Helvetica"
+skinparam ParticipantBackgroundColor #FEF9E7
+skinparam ParticipantBorderColor #B7950B
+
+actor Usuario as U
+participant "LoginForm /\nAuthContext" as FE
+participant "Firebase Auth\n(SDK web)" as FB
+participant "API client\n(interceptores)" as API
+participant "FirebaseAuthentication\n(backend)" as BEA
+participant "UserProfileAPIView\n(/users/me/)" as ME
+participant "ClinicContext" as CC
+database "PostgreSQL" as DB
+
+U -> FE : email + contraseña
+FE -> FB : signInWithEmailAndPassword
+FB --> FE : idToken + uid
+FE -> FE : onAuthStateChanged dispara
+FE -> API : getMe()
+API -> BEA : GET /users/me/ (Bearer idToken)
+BEA -> FB : verify_id_token(idToken)
+FB --> BEA : uid, email
+BEA -> DB : buscar User por firebase_uid / email
+DB --> BEA : User
+BEA --> ME : request.user
+ME --> API : UserProfile (role, ...)
+API --> FE : perfil
+
+FE -> CC : cargar clínicas (getClinics)
+CC -> API : GET /clinics/
+API --> CC : lista de clínicas
+alt una sola clínica
+  CC -> CC : seleccionar automáticamente
+else varias clínicas
+  CC --> U : pantalla "Seleccionar clínica"
+  U -> CC : elegir clínica activa (X-Clinic-Id)
+end
+
+alt términos pendientes
+  FE --> U : redirigir a "Aceptar política y autorización"
+else al día
+  FE --> U : redirigir según rol\n(propietario / tablero veterinario)
+end
+
+note over API
+  Cada petición agrega
+  Authorization: Bearer <idToken>
+  y X-Clinic-Id.
+end note
+
+@enduml

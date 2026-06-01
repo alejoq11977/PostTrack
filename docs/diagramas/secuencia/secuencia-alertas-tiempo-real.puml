@@ -1,0 +1,37 @@
+@startuml secuencia-alertas-tiempo-real
+title PostTrack — Secuencia: Alertas en tiempo real (SSE)
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Helvetica"
+skinparam ParticipantBackgroundColor #E8F8F5
+skinparam ParticipantBorderColor #148F77
+
+actor Veterinario as V
+participant "useRealtimeAlerts\n(React hook)" as HOOK
+participant "vet_sse_alerts\n(/vet/alerts/stream/)" as SSE
+database "PostgreSQL" as DB
+
+V -> HOOK : abrir el tablero
+HOOK -> SSE : GET /vet/alerts/stream/\n(Accept: text/event-stream)
+activate SSE
+
+loop conexión abierta
+  SSE -> DB : reportes pendientes + reportes faltantes\n(filtrados por clínica)
+  DB --> SSE : datos
+  SSE --> HOOK : event: alertas (JSON)
+  HOOK --> V : actualizar contadores y listas
+end
+
+alt se pierde la conexión SSE
+  HOOK -> HOOK : cambiar a sondeo periódico (polling)
+  HOOK --> V : indicador "Conectando..."
+end
+
+note right of SSE
+  Esta ruta está exenta del
+  ClinicAccessMiddleware y resuelve
+  el acceso por clínica internamente.
+end note
+
+@enduml
