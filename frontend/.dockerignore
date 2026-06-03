@@ -1,0 +1,14 @@
+# Dependencias y build (se instalan/generan en la imagen)
+node_modules/
+dist/
+.vite/
+
+# Configuración local y secretos
+.env
+.env.*
+!.env.production.example
+
+# Control de versiones y metadatos
+.git/
+.gitignore
+.dockerignore

@@ -1,0 +1,19 @@
+# Entornos y dependencias (se instalan en la imagen)
+.venv/
+**/__pycache__/
+*.py[cod]
+
+# Secretos y configuración local
+.env
+**/.env
+src/config/firebase-credentials.json
+
+# Datos locales / artefactos de runtime
+*.sqlite3
+**/celerybeat-schedule*
+src/media/
+
+# Control de versiones y metadatos
+.git/
+.gitignore
+.dockerignore
