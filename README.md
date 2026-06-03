@@ -262,3 +262,11 @@ npm run build        # build de producción
 - **José Alejandro Quintero Gahona**
 
 Universidad Tecnológica de Pereira — Ingeniería de Sistemas y Computación.
+
+---
+
+## 📄 Licencia
+
+Copyright © 2026 José Alejandro Quintero Gahona.
+
+Este proyecto se distribuye bajo los términos de la **GNU General Public License v3.0 (GPL-3.0)**. Puedes usar, estudiar, modificar y redistribuir el código, pero cualquier obra derivada que se distribuya debe publicarse también bajo la misma licencia (copyleft). El texto completo está en el archivo [`LICENSE`](LICENSE).
