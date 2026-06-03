@@ -108,16 +108,15 @@ function ImageModal({ evidence, onClose }: { evidence: VetEvidence; onClose: () 
   );
 }
 
-// Fila de una pregunta general: ícono + texto, coloreada por el riesgo clínico real.
+// Fila de una pregunta general: ícono + texto + respuesta explícita Sí/No.
 function GeneralAnswerRow({ answer }: { answer: VetAnswer }) {
-  const risk = answer.present ? (answer.risk_level as RiskKey | undefined) : undefined;
-  const meta = risk ? RISK_META[risk] : null;
+  const isYes = answer.present === true;
 
   return (
-    <div className={`flex items-start gap-3 rounded-xl border p-3 ${meta ? meta.row : 'bg-white border-slate-100'}`}>
+    <div className={`flex items-start gap-3 rounded-xl border p-3 ${isYes ? 'bg-amber-50 border-amber-100' : 'bg-white border-slate-100'}`}>
       <div className="shrink-0 mt-0.5">
-        {answer.present ? (
-          <AlertTriangle size={18} className={meta ? meta.icon : 'text-slate-400'} />
+        {isYes ? (
+          <AlertTriangle size={18} className="text-amber-500" />
         ) : (
           <CheckCircle2 size={18} className="text-emerald-500" />
         )}
@@ -125,11 +124,13 @@ function GeneralAnswerRow({ answer }: { answer: VetAnswer }) {
       <div className="flex-1 min-w-0">
         <p className="text-sm text-slate-700 leading-snug">{answer.question_text}</p>
       </div>
-      {answer.present && risk && (
-        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${meta!.chip}`}>
-          {meta!.label}
-        </span>
-      )}
+      <span
+        className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full shrink-0 ${
+          isYes ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+        }`}
+      >
+        {isYes ? 'Sí' : 'No'}
+      </span>
     </div>
   );
 }
@@ -260,10 +261,20 @@ export const VetReportDetailPage = () => {
               <p className="text-xs text-slate-400 mt-0.5">
                 Día {report.day_number} · {new Date(report.submitted_at).toLocaleString('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
               </p>
-              <p className="text-sm text-slate-600 mt-3 pt-3 border-t border-slate-100">
-                <span className="text-slate-400">Propietario: </span>
-                <span className="font-medium text-slate-700">{report.owner_name}</span>
-              </p>
+              <div className="mt-3 pt-3 border-t border-slate-100 space-y-1.5 text-sm">
+                <p>
+                  <span className="text-slate-400">Propietario: </span>
+                  <span className="font-medium text-slate-700">{report.owner_name}</span>
+                </p>
+                <p className="flex items-start gap-1.5 text-slate-600 break-all">
+                  <Mail size={14} className="text-slate-400 mt-0.5 shrink-0" />
+                  {report.owner_email || <span className="text-slate-400">Sin correo registrado</span>}
+                </p>
+                <p className="flex items-center gap-1.5 text-slate-600">
+                  <Phone size={14} className="text-slate-400 shrink-0" />
+                  {report.owner_phone || <span className="text-slate-400">Sin teléfono registrado</span>}
+                </p>
+              </div>
               <div className="flex flex-wrap gap-2 mt-3">
                 {report.owner_phone && (
                   <a href={`tel:${report.owner_phone}`} className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors">
