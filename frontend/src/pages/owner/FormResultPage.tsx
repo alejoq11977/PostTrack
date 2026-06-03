@@ -1,4 +1,4 @@
-import { CheckCircle2, AlertTriangle, XCircle, Home } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Home } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { RiskEvaluationResult } from '@/features/patients/api/patients.service';
 

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Mail, Lock, AlertCircle, ArrowRight, Info } from 'lucide-react';
+import { Mail, Lock, AlertCircle, ArrowRight } from 'lucide-react';
 import { Input } from '@/shared/components/common/Input';
 import { cn } from '@/shared/utils/cn';
 import { useLogin } from '../hooks/useLogin';

@@ -1,6 +1,5 @@
 import { Calendar, CheckCircle2, Clock, AlertCircle, ImageIcon, ChevronDown, ChevronUp } from 'lucide-react';
 import { ReportHistory } from '@/features/patients/types/patient.model';
-import { cn } from '@/shared/utils/cn';
 
 interface HistoryTimelineCardProps {
   report: ReportHistory;

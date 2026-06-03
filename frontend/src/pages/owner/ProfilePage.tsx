@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useClinic } from '@/features/clinics/context/ClinicContext';
 import { authService } from '@/features/auth/api/auth.service';
-import { User, Mail, CreditCard, Phone, MapPin, AlertTriangle } from 'lucide-react';
+import { User, Mail, CreditCard, Phone, AlertTriangle } from 'lucide-react';
 
 export const ProfilePage = () => {
   const { user, reloadUser, logout } = useAuth();

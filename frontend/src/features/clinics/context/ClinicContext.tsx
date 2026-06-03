@@ -32,7 +32,7 @@ export const ClinicProvider = ({ children }: { children: ReactNode }) => {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
+  const [, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
 
   const fetchClinics = useCallback(async (firebaseUserUid?: string) => {

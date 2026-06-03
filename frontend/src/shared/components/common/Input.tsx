@@ -26,7 +26,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               "absolute left-[13px] top-1/2 -translate-y-1/2 text-slate-400 transition-colors duration-200",
               error ? "text-red-400" : "group-focus-within:text-brand-400"
             )}>
-              {React.cloneElement(icon as React.ReactElement, { size: 18, strokeWidth: 1.8 })}
+              {React.cloneElement(icon as React.ReactElement<{ size?: number; strokeWidth?: number }>, { size: 18, strokeWidth: 1.8 })}
             </div>
           )}
 

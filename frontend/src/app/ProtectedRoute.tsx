@@ -8,7 +8,7 @@ import { clinicService } from '@/features/clinics/api/clinic.service';
 
 export const ProtectedRoute = () => {
   const { user, isLoading: isAuthLoading, logout } = useAuth();
-  const { clinics, activeClinic, isLoading: isClinicLoading, isInitialized } = useClinic();
+  const { clinics, activeClinic, isInitialized } = useClinic();
   const location = useLocation();
   const navigate = useNavigate();
 

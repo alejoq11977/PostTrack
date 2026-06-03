@@ -25,7 +25,7 @@ export const ForgotPasswordPage = () => {
     try {
       await sendPasswordResetEmail(auth, email);
       setIsSuccess(true);
-    } catch (err: any) {
+    } catch {
       setIsSuccess(true);
     } finally {
       setIsLoading(false);

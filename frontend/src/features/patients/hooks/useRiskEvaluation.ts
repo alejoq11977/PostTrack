@@ -21,8 +21,8 @@ export const useRiskEvaluation = (): UseRiskEvaluationReturn => {
       const evaluationResult = await patientsService.evaluateRisk(answers, monitoringId);
       setResult(evaluationResult);
       return evaluationResult;
-    } catch (err: any) {
-      const message = err.response?.data?.error || 'Error al evaluar el riesgo';
+    } catch (err: unknown) {
+      const message = (err as { response?: { data?: { error?: string } } }).response?.data?.error || 'Error al evaluar el riesgo';
       setError(message);
       throw err;
     } finally {

@@ -392,9 +392,9 @@ export const VetUsersPage = () => {
       } else {
         setShowModal(false);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error saving owner:', err);
-      const errors = err?.response?.data;
+      const errors = (err as { response?: { data?: Record<string, unknown> } })?.response?.data;
       let errorMsg = 'Error al guardar';
       if (errors) {
         const messages = Object.values(errors).flat().join('\n');

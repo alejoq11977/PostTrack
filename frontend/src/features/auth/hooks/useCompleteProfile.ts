@@ -50,10 +50,11 @@ export const useCompleteProfile = () => {
 
       window.location.replace('/');
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      
-      if (err.code === 'auth/requires-recent-login') {
+
+      const code = (err as { code?: string }).code;
+      if (code === 'auth/requires-recent-login') {
         setError('Por seguridad, debe haber iniciado sesión recientemente para cambiar su contraseña.');
         setIsSessionExpired(true); 
       } else {

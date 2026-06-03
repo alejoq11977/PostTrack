@@ -36,10 +36,11 @@ export const ChangeClinicModal = ({ onClose, onSuccess }: ChangeClinicModalProps
       );
       await reauthenticateWithCredential(firebaseUser, credential);
       onSuccess();
-    } catch (err: any) {
-      if (err.code === 'auth/wrong-password') {
+    } catch (err: unknown) {
+      const code = (err as { code?: string }).code;
+      if (code === 'auth/wrong-password') {
         setError('Contraseña incorrecta');
-      } else if (err.code === 'auth/user-mismatch') {
+      } else if (code === 'auth/user-mismatch') {
         setError('El usuario no coincide');
       } else {
         setError('Error al verificar credentials');

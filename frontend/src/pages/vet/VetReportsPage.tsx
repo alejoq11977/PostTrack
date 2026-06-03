@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { FileText, Search, ChevronRight, CheckCircle, Clock, AlertTriangle, X, RefreshCw } from 'lucide-react';
+import { FileText, Search, ChevronRight, CheckCircle, Clock, AlertTriangle, RefreshCw } from 'lucide-react';
 import { vetService, VetReport } from '@/features/vet/api/vet.service';
 
 const RISK_STYLES = {
@@ -36,7 +36,7 @@ function formatTimeAgo(dateString: string): string {
 
 export const VetReportsPage = () => {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const monitoringId = searchParams.get('monitoring');
   const [reports, setReports] = useState<VetReport[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -48,7 +48,7 @@ export const VetReportsPage = () => {
     try {
       const filterParam = filter === 'all' ? undefined : filter;
       const data = await vetService.getReports(filterParam, monitoringId ? parseInt(monitoringId) : undefined);
-      let results = [];
+      let results: VetReport[] = [];
 
       if (Array.isArray(data)) {
         results = data;

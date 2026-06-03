@@ -43,7 +43,7 @@ export const useLogin = () => {
     setIsLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
-    } catch (err: any) {
+    } catch {
       setErrors(prev => ({ 
         ...prev, 
         global: 'Correo o contraseña incorrectos. Por favor verifique e intente de nuevo.' 

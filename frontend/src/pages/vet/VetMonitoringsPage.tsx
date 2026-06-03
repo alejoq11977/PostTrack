@@ -681,7 +681,7 @@ function CreateMonitoringModal({
           setSearchResults(allPatients);
         } else {
           const patients = await vetService.searchPatients(searchQuery);
-          setSearchResults(patients.map((p: any) => ({
+          setSearchResults(patients.map((p) => ({
             id: p.id,
             type: 'patient' as const,
             name: p.name,
@@ -691,8 +691,7 @@ function CreateMonitoringModal({
             species: p.species,
             breed: p.breed,
             owner_id: p.owner_id,
-            owner_email: p.owner_email,
-            owner_identification_number: p.owner_identification_number,
+            owner_email: p.owner_email ?? undefined,
           })));
         }
       } catch (error) {
